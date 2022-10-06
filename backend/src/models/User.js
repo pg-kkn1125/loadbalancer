@@ -72,14 +72,14 @@ class User {
   }
 
   #createViewerData({
-    type,
-    server,
-    space,
-    channel,
-    device,
-    deviceID,
-    host,
-    timestamp,
+    type = null,
+    server = null,
+    space = null,
+    channel = null,
+    device = null,
+    deviceID = null,
+    host = null,
+    timestamp = null,
   }) {
     this.type = type;
     this.server = server;
@@ -92,23 +92,23 @@ class User {
   }
 
   #createPlayerData({
-    type,
-    id,
-    nickname,
-    server,
-    space,
-    channel,
-    device,
-    deviceID,
-    authority,
-    avatar,
-    pox,
-    poy,
-    poz,
-    roy,
-    state,
-    host,
-    timestamp,
+    type = null,
+    id = null,
+    nickname = null,
+    server = null,
+    space = null,
+    channel = null,
+    device = null,
+    deviceID = null,
+    authority = null,
+    avatar = null,
+    pox = null,
+    poy = null,
+    poz = null,
+    roy = null,
+    state = null,
+    host = null,
+    timestamp = null,
   }) {
     this.type = type;
     this.id = id;

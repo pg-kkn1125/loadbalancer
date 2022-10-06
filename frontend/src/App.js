@@ -1,4 +1,4 @@
-import Container from "@mui/material/Container";
+import { Container } from "@mui/material";
 import React, { Suspense, useState } from "react";
 import Canvas from "./components/atoms/Canvas";
 import Socket from "./components/atoms/Socket";

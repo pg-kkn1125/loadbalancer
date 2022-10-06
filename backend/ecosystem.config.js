@@ -35,6 +35,7 @@ const statusOptions = {
  * 채팅서버 세팅
  */
 const chat = {
+  name: "chat",
   script: "./src/workers/chat.js",
   watch: ["./src/workers"],
   instances: 1,
@@ -48,6 +49,7 @@ const chat = {
  */
 const SERVER_AMOUNT = 1;
 const servers = new Array(SERVER_AMOUNT).fill(0).map((e, index) => ({
+  name: `server${index + 1}`,
   script: `./src/workers/server.js`,
   watch: ["./src/workers"],
   wait_ready: true,

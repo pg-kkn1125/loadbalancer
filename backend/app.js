@@ -19,9 +19,9 @@ const sockets = new Map();
 const users = new Map();
 let isDisableKeepAlive = false;
 let deviceID = 0;
-let se = 1;
-let sp = "a";
-let ch = 1;
+let se = 1; // 부하 체크로 늘려야함.
+let sp = "a"; // 공간은 URL 배정 받음
+let ch = 1; // 인원 수 체크로 늘려야함.
 let targetServerName = "";
 
 /**
@@ -157,6 +157,7 @@ function drainHandler(ws) {
 function closeHandler(ws, code, message) {
   console.log(`${sockets.get(ws)}번 종료`);
   console.log("WebSocket closed");
+  emitter.emit(`${targetServerName}::close`, app, users.get(ws));
 }
 
 /**

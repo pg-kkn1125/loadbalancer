@@ -74,6 +74,10 @@ function Socket({ ws, setWs }) {
       nickname: nickRef.current.value,
       device: "labtop",
       state: "online",
+      pox: innerWidth / 2 - 35 / 2,
+      poy: innerHeight / 2 - 35 / 2,
+      poz: 0,
+      roy: 0,
     }).toJSON();
     console.log(nickRef.current.value);
     // 작동 안되는 이유는 User class에서 type없으면 모두 널 값이 되도록 해서.
