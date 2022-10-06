@@ -1,10 +1,12 @@
+const pm2 = require("pm2");
+
 /**
  * 공통 속성
  */
 const envOptions = {
   env: {
     // 실행 시 환경 변수 설정
-    HOST: "0.0.0.0",
+    HOST: "localhost",
     PORT: 3000,
   },
   env_production: {
@@ -28,10 +30,6 @@ const statusOptions = {
   // listen_timeout: 50000, // ready 이벤트를 기다릴 시간값(ms)을 의미
   // kill_timeout: 5000, // 새로운 요청을 더 이상 받지 않고 연결되어 있는 요청이 완료된 후 해당 프로세스를 강제로 종료하도록 처리
 };
-const instanceOptions = {
-  instances: 1,
-  // exec_mode: 'cluster'
-};
 
 /**
  * 채팅서버 세팅
@@ -39,10 +37,10 @@ const instanceOptions = {
 const chat = {
   script: "./src/workers/chat.js",
   watch: ["./src/workers"],
-  instanceOptions,
-  envOptions,
-  watchOptions,
-  statusOptions,
+  instances: 1,
+  ...envOptions,
+  ...watchOptions,
+  ...statusOptions,
 };
 
 /**
@@ -50,24 +48,32 @@ const chat = {
  */
 const SERVER_AMOUNT = 1;
 const servers = new Array(SERVER_AMOUNT).fill(0).map((e, index) => ({
-  script: `./src/workers/server${index}.js`,
+  script: `./src/workers/server.js`,
   watch: ["./src/workers"],
-  instanceOptions,
-  envOptions,
-  watchOptions,
-  statusOptions,
+  wait_ready: true,
+  instances: 1,
+  ...{
+    ...Object.assign(envOptions, {
+      env: { ...envOptions.env, SERVER_NAME: `server${index + 1}` },
+    }),
+  },
+  ...watchOptions,
+  ...statusOptions,
 }));
 
 /**
  * 리시브 서버 세팅
  */
 const receive = {
-  script: "src/app.js",
-  watch: "./src",
-  instanceOptions,
-  envOptions,
-  watchOptions,
-  statusOptions,
+  name: "app", // 앱 이름
+  script: "./app.js",
+  watch: ["./"],
+  wait_ready: true,
+  restart_delay: 1000,
+  instances: 1,
+  ...envOptions,
+  ...watchOptions,
+  ...statusOptions,
 };
 
 /**
@@ -85,10 +91,46 @@ const production = {
   "pre-setup": "",
 };
 
-module.exports = {
-  apps: [chat, ...servers, receive],
+pm2.connect(function (err) {
+  if (err) {
+    console.log(err);
+    process.exit(2);
+  }
 
-  deploy: {
-    production: production,
-  },
-};
+  setTimeout(() => {
+    pm2.start(chat, controlFn("chat"));
+    setTimeout(() => {
+      servers.forEach((server, idx) => {
+        pm2.start(server, controlFn("server" + (idx + 1)));
+      });
+      setTimeout(() => {
+        pm2.start(receive, controlFn("app"));
+      }, 1000);
+    }, 10);
+  }, 10);
+});
+
+function controlFn(name) {
+  return function (err, apps) {
+    if (err) {
+      console.log(err);
+      return pm2.disconnect();
+    }
+
+    pm2.list((err, list) => {
+      // console.log(err, list);
+
+      pm2.restart(name, (err, proc) => {
+        pm2.disconnect();
+      });
+    });
+  };
+}
+
+// module.exports = {
+//   apps: [receive, chat, ...servers],
+
+//   deploy: {
+//     production: production,
+//   },
+// };

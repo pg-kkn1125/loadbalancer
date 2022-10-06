@@ -1,11 +1,15 @@
-import Socket from "./components/Socket";
+import Container from "@mui/material/Container";
+import React, { Suspense, useState } from "react";
+import Canvas from "./components/atoms/Canvas";
+import Socket from "./components/atoms/Socket";
 
-function App() {
+export default function App() {
+  const [ws, setWs] = useState(null);
+
   return (
-    <div className='App'>
-      <Socket />
-    </div>
+    <Container maxWidth='sm'>
+      <Socket ws={ws} setWs={setWs} />
+      <Canvas />
+    </Container>
   );
 }
-
-export default App;

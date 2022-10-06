@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "app.js",
+  "main": "ecosystem.config.js",
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -9,11 +9,23 @@
   "scripts": {
     "localhost": "set HOST=localhost",
     "port3000": "set PORT=3000",
-    "start": "concurrently \"npm localhost\" \"npm port3000\" \"nodemon --watch ./ ./app.js\""
+    "test": "concurrently \"npm localhost\" \"npm port3000\" \"nodemon --watch ./ ./app.js\"",
+    "start": "pm2 save && set NODE_ENV=development && node ecosystem.config.js",
+    "restart": "pm2 restart all",
+    "reload": "pm2 reload all",
+    "stop": "pm2 stop all",
+    "refresh": "yarn reload && yarn restart",
+    "reset": "pm2 reset all ",
+    "log": "pm2 log",
+    "monit": "pm2 monit",
+    "deleteall": "pm2 delete all",
+    "killall": "yarn stop && yarn deleteall && pm2 kill",
+    "flush": "pm2 flush all"
   },
   "dependencies": {
     "pm2": "^5.2.0",
     "protobufjs": "^7.1.2",
+    "tx2": "^1.0.5",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.10.0"
   }
 }

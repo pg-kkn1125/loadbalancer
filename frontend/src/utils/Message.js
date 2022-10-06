@@ -1,7 +1,8 @@
+import protobuf from "protobufjs";
+
 /**
  * Protobuf 메세지 클래스 설정
  */
-const protobuf = require("protobufjs");
 
 class Message {
   #message = null;
@@ -34,4 +35,4 @@ class Message {
   }
 }
 
-module.exports = { Message };
+export { Message };
