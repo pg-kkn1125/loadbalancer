@@ -13,6 +13,7 @@ const { Message } = require("./src/protobuf");
  * sp                 === 공간
  * ch                 === 채널
  * targetServerName   === 타겟 서버 명
+ * decoder            === message가 바이너리가 아닐 때
  */
 const PORT = Number(process.env.PORT || 3000);
 const sockets = new Map();
@@ -23,26 +24,7 @@ let se = 1; // 부하 체크로 늘려야함.
 let sp = "a"; // 공간은 URL 배정 받음
 let ch = 1; // 인원 수 체크로 늘려야함.
 let targetServerName = "";
-
-/**
- * Protobuf 규격 초기화
- */
-const declareProtobuf = new Message({
-  id: "fixed32",
-  type: "string",
-  nickname: "string",
-  device: "string",
-  deviceID: "string",
-  authority: "bool",
-  avatar: "string",
-  pox: "float",
-  poy: "float",
-  poz: "float",
-  roy: "float",
-  state: "string",
-  host: "string",
-  timestamp: "fixed64",
-});
+const decoder = new TextDecoder();
 
 const app = uWs
   .App({})
@@ -85,7 +67,7 @@ function upgradeHandler(res, req, context) {
       url: req.getUrl(),
       params: params,
       /* 파라미터 추가되는 값 아래에 필드 추가 */
-      space: params.sp,
+      space: params.sp.toLowerCase() || "a",
       href: href,
       host: host,
     },
@@ -116,6 +98,15 @@ function openHandler(ws) {
     host: host,
   }).toJSON();
 
+  /**
+   * 구독 좋아요 알람설정~~
+   */
+  ws.subscribe(String(deviceID));
+  ws.subscribe(`server_${se}`);
+  ws.subscribe(`space_${sp.toLowerCase()}`);
+  ws.subscribe(`channel_${ch}`);
+  ws.subscribe("server");
+
   sockets.set(ws, deviceID);
   users.set(ws, user);
 
@@ -126,8 +117,6 @@ function openHandler(ws) {
 }
 
 function messageHandler(ws, message, isBinary) {
-  /* Ok is false if backpressure was built up, wait for drain */
-  // let ok = ws.send(message, isBinary);
   if (isBinary) {
     /**
      * Player 로그인 시 / protobuf 메세지
@@ -141,6 +130,8 @@ function messageHandler(ws, message, isBinary) {
 
     emitter.emit(`${targetServerName}::login`, app, users.get(ws));
   } else {
+    const data = JSON.parse(decoder.decode(message));
+    emitter.emit(`${targetServerName}::location`, app, data);
     // 일반 json stringify 메세지
     // const strings = decoder.decode(new Uint8Array(message));
     // const json = JSON.parse(strings);

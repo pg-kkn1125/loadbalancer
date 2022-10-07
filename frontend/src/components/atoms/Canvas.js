@@ -1,9 +1,18 @@
 import { Box, styled } from "@mui/material";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 let frame = 0;
+let toggle = {
+  w: false,
+  s: false,
+  a: false,
+  d: false,
+};
 
-function Canvas() {
+const SPEED = 5;
+let select = null;
+
+function Canvas({ ws, me, setWs, users, setUsers }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -14,15 +23,66 @@ function Canvas() {
     current.height = innerHeight;
 
     function animate() {
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      if (users.length > 0) {
+        users.forEach((user) => {
+          ctx.clearRect(0, 0, innerWidth, innerHeight);
 
-      ctx.fillRect(innerWidth / 2, innerHeight / 2, 35, 35);
+          ctx.fillText(user.nickname, user.pox + 35 / 2, user.poy - 15);
+          ctx.textAlign = "center";
+          ctx.fillRect(user.pox, user.poy, 35, 35);
+        });
+      }
+
+      console.log(me.current)
+      if (
+        ws &&
+        (select = users.find((user) => me.current.deviceID === user.deviceID))
+      ) {
+        if (toggle.w) {
+          select.poy -= SPEED;
+        } else if (toggle.s) {
+          select.poy += SPEED;
+        } else if (toggle.a) {
+          select.pox -= SPEED;
+        } else if (toggle.d) {
+          select.pox += SPEED;
+        }
+
+        ws.send(
+          JSON.stringify(
+            Object.assign(select, {
+              deviceID: select.deviceID,
+              pox: select.pox,
+              poy: select.poy,
+              poz: select.poz,
+              roy: select.roy,
+            })
+          )
+        );
+      }
 
       frame += 0.1;
       requestAnimationFrame(animate);
     }
-    requestAnimationFrame(animate);
-  }, []);
+    const animateTime = requestAnimationFrame(animate);
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    function handleKeyDown(e) {
+      toggle[e.key] = true;
+    }
+
+    function handleKeyUp(e) {
+      toggle[e.key] = false;
+    }
+
+    return () => {
+      cancelAnimationFrame(animateTime);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [users]);
 
   return (
     <Box

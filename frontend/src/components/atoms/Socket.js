@@ -2,6 +2,7 @@ import { Alert, Box, Button, Paper, Stack, TextField } from "@mui/material";
 import React, { useEffect, useRef, useState } from "react";
 import User from "../../models/User";
 import { Message } from "../../utils/Message";
+import Canvas from "./Canvas";
 
 const declareProtobuf = new Message({
   id: "fixed32",
@@ -23,7 +24,7 @@ const declareProtobuf = new Message({
 const HOST = process.env.SERVER_HOST || "localhost";
 const PORT = process.env.SERVER_PORT || 3000;
 
-function Socket({ ws, setWs }) {
+function Socket({ ws, me, setWs, users, setUsers }) {
   const nickRef = useRef(null);
   const [show, isShow] = useState(null);
   const [login, setLogin] = useState(false);
@@ -34,11 +35,20 @@ function Socket({ ws, setWs }) {
   };
 
   const onmessage = (message) => {
-    if (message instanceof Blob) {
+    if (message.data instanceof Blob) {
       /*  */
-    } else {
+    } else if (message.data instanceof ArrayBuffer) {
+      const decoder = new TextDecoder();
+      const jsonString = decoder.decode(message.data);
+      const object = JSON.parse(jsonString);
+      if (object.hasOwnProperty("type")) {
+        // login
+        setUsers(users.concat(object));
+      } else {
+        // location
+        me.current = object;
+      }
     }
-    console.log("server: ", message);
   };
 
   const onerror = (e) => {
@@ -68,6 +78,7 @@ function Socket({ ws, setWs }) {
   }, []);
 
   const handleLogin = () => {
+    if (nickRef.current.value === "") return;
     const user = new User({
       id: 1,
       type: "player",
@@ -79,14 +90,13 @@ function Socket({ ws, setWs }) {
       poz: 0,
       roy: 0,
     }).toJSON();
-    console.log(nickRef.current.value);
     // 작동 안되는 이유는 User class에서 type없으면 모두 널 값이 되도록 해서.
     ws.send(Message.encode(declareProtobuf.setMessage(user)).finish());
     setLogin(true);
   };
 
   return (
-    <Box>
+    <>
       {show === true && <Alert severity='success'>연결되었습니다.</Alert>}
       {show === false && <Alert severity='error'>연결이 끊어졌습니다.</Alert>}
       {!login && ws && (
@@ -105,7 +115,8 @@ function Socket({ ws, setWs }) {
           <Button onClick={handleLogin}>로그인</Button>
         </Stack>
       )}
-    </Box>
+      <Canvas ws={ws} me={me} setWs={setWs} users={users} setUsers={setUsers} />
+    </>
   );
 }
 

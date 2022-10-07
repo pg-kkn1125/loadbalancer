@@ -34,4 +34,24 @@ class Message {
   }
 }
 
-module.exports = { Message };
+/**
+ * Protobuf 규격 초기화
+ */
+const declareProtobuf = new Message({
+  id: "fixed32",
+  type: "string",
+  nickname: "string",
+  device: "string",
+  deviceID: "string",
+  authority: "bool",
+  avatar: "string",
+  pox: "float",
+  poy: "float",
+  poz: "float",
+  roy: "float",
+  state: "string",
+  host: "string",
+  timestamp: "fixed64",
+});
+
+module.exports = { declareProtobuf, Message };

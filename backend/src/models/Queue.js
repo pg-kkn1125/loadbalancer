@@ -1,29 +1,43 @@
+const { Message, declareProtobuf } = require("../protobuf");
+
 class Queue {
-  constructor() {
-    this.count = 0;
-    this.storage = new ArrayBuffer(0);
-    this.tmp;
-    this.returnData = "";
+  #channels = new Map();
+  #limit = 1000;
+
+  constructor(limit = 1000) {
+    this.#limit = limit;
   }
 
-  enter(data) {
-    if (this.count === 0) this.returnData = false;
-    this.storage = this.joinArrayBuffer(data);
-    this.count++;
+  #selectChannel(ch) {
+    if (!this.#channels.has(String(ch))) {
+      this.#channels.set(String(ch), []);
+    }
+    return this.#channels.get(String(ch));
   }
 
-  get() {
-    this.returnData = this.storage;
-    this.storage = new ArrayBuffer(0);
-    this.count = 0;
-    return this.returnData;
+  enter(ch, data) {
+    this.#isOverflow(ch);
+    const str = JSON.stringify(data);
+    this.#selectChannel(ch).push(str);
   }
 
-  joinArrayBuffer(data) {
-    this.tmp = new Uint8Array(this.storage.byteLength + data.byteLength);
-    this.tmp.set(new Uint8Array(this.storage), 0);
-    this.tmp.set(new Uint8Array(data), this.storage.byteLength);
-    return this.tmp;
+  get(ch) {
+    return this.#selectChannel(ch).shift();
+  }
+
+  clear(ch) {
+    this.#channels.set(String(ch), []);
+  }
+
+  size(ch) {
+    this.#isOverflow(ch);
+    return this.#selectChannel(ch).length;
+  }
+
+  #isOverflow(ch) {
+    if (this.#selectChannel(ch).length > this.#limit) {
+      this.get(ch);
+    }
   }
 }
 
