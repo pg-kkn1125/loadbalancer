@@ -21,10 +21,14 @@ const declareProtobuf = new Message({
   timestamp: "fixed64",
 });
 
+let usersMap = new Map();
+let users = [];
+
 const HOST = process.env.SERVER_HOST || "localhost";
 const PORT = process.env.SERVER_PORT || 3000;
 
-function Socket({ ws, me, setWs, users, setUsers }) {
+function Socket({ ws, setWs }) {
+  let [myId, setMyId] = useState(null);
   const nickRef = useRef(null);
   const [show, isShow] = useState(null);
   const [login, setLogin] = useState(false);
@@ -43,10 +47,15 @@ function Socket({ ws, me, setWs, users, setUsers }) {
       const object = JSON.parse(jsonString);
       if (object.hasOwnProperty("type")) {
         // login
-        setUsers(users.concat(object));
+        setMyId(object.deviceID);
+        users.push(object);
+        usersMap.set(object.deviceID, object);
       } else {
         // location
-        me.current = object;
+        if (!object) return;
+        const user = usersMap.get(object.deviceID);
+        user.pox = object.pox;
+        user.poy = object.poy;
       }
     }
   };
@@ -115,7 +124,7 @@ function Socket({ ws, me, setWs, users, setUsers }) {
           <Button onClick={handleLogin}>로그인</Button>
         </Stack>
       )}
-      <Canvas ws={ws} me={me} setWs={setWs} users={users} setUsers={setUsers} />
+      <Canvas ws={ws} myId={myId} usersMap={usersMap} users={users} />
     </>
   );
 }

@@ -20,18 +20,42 @@ const serverName = process.env.SERVER_NAME;
 const users = new Map();
 const spaces = new SpaceBalancer();
 
-emitter.on(`${serverName}::open`, (app, viewer) => {
-  users.set(viewer.deviceID, viewer);
-  spaces.addUserInEmptyChannel(viewer);
-  checkLog(viewer.space, viewer.channel);
+let ch = 1;
+
+emitter.on(`${serverName}::open`, (app, ws, viewer) => {
+  Object.assign(viewer, {
+    channel: ch,
+  });
+  const renewViewer = spaces.addUserInEmptyChannel(viewer);
+  users.set(renewViewer.deviceID, renewViewer);
+  ws.subscribe(String(renewViewer.deviceID));
+  ws.subscribe(
+    `${serverName}/space${renewViewer.space.toLowerCase()}/channel${
+      renewViewer.channel
+    }`
+  );
+  /* 로그인 시 플레이어 전달 */
+  app.publish(
+    String(renewViewer.deviceID),
+    JSON.stringify(spaces.getPlayers(renewViewer.space, renewViewer.channel))
+  );
+  checkLog(renewViewer.space, renewViewer.channel);
 });
 
 emitter.on(`${serverName}::login`, (app, player) => {
-  users.set(player.deviceID, player);
-  spaces.addUserInEmptyChannel(player);
+  const renewPlayer = spaces.addUserInEmptyChannel(player);
+  users.set(renewPlayer.deviceID, renewPlayer);
 
-  locationMap[player.space.toLowerCase()].enter(player.channel, player);
-  checkLog(player.space, player.channel);
+  app.publish(
+    String(renewPlayer.deviceID),
+    new TextEncoder().encode(JSON.stringify(renewPlayer))
+  );
+  locationMap[renewPlayer.space.toLowerCase()].enter(
+    renewPlayer.channel,
+    renewPlayer
+  );
+
+  checkLog(renewPlayer.space, renewPlayer.channel);
 });
 
 emitter.on(`${serverName}::location`, (app, location) => {
@@ -53,13 +77,16 @@ emitter.on(`${serverName}::location`, (app, location) => {
     poz: replaceUser.poz,
     roy: replaceUser.roy,
   });
-  checkLog(replaceUser.space, replaceUser.channel);
+  // checkLog(replaceUser.space, replaceUser.channel);
 });
 
 emitter.on(`${serverName}::close`, (app, user) => {
   console.log(user.deviceID, `번 유저 제거`);
   spaces.deleteUser(users.get(user.deviceID));
-  checkLog(user.space, user.channel);
+  app.publish(
+    `${serverName}/space${user.space.toLowerCase()}/channel${user.channel}`,
+    String(user.deviceID)
+  );
 });
 
 process.send("ready");
@@ -75,12 +102,20 @@ setInterval(() => {
   locationBroadcastToChannel("e");
 }, 8);
 
-function locationBroadcastToChannel(ch) {
-  if (spaces.hasSpace(ch)) {
-    for (let channel of spaces.selectSpace(ch).keys()) {
-      if (locationMap[ch].size(channel) > 0) {
-        const q = locationMap[ch].get(channel);
-        app.publish(`channel_${channel}`, q, true, true);
+let frameA = 0;
+
+function locationBroadcastToChannel(sp) {
+  frameA += 0.1;
+  if (spaces.hasSpace(sp)) {
+    for (let channel of spaces.selectSpace(sp).keys()) {
+      if (locationMap[sp].size(channel) > 0) {
+        const q = locationMap[sp].get(channel);
+        app.publish(
+          `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
+          q,
+          true,
+          true
+        );
       }
     }
   }

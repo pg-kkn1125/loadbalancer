@@ -20,9 +20,8 @@ const sockets = new Map();
 const users = new Map();
 let isDisableKeepAlive = false;
 let deviceID = 0;
-let se = 1; // 부하 체크로 늘려야함.
+let se = 1;
 let sp = "a"; // 공간은 URL 배정 받음
-let ch = 1; // 인원 수 체크로 늘려야함.
 let targetServerName = "";
 const decoder = new TextDecoder();
 
@@ -94,24 +93,19 @@ function openHandler(ws) {
     deviceID: deviceID,
     server: se,
     space: sp,
-    channel: ch,
+    // channel: ch,
     host: host,
   }).toJSON();
 
   /**
-   * 구독 좋아요 알람설정~~
+   * 전체 서버 구독
    */
-  ws.subscribe(String(deviceID));
-  ws.subscribe(`server_${se}`);
-  ws.subscribe(`space_${sp.toLowerCase()}`);
-  ws.subscribe(`channel_${ch}`);
   ws.subscribe("server");
-
   sockets.set(ws, deviceID);
   users.set(ws, user);
 
   targetServerName = `server${user.server}`;
-  emitter.emit(`${targetServerName}::open`, app, users.get(ws));
+  emitter.emit(`${targetServerName}::open`, app, ws, users.get(ws));
 
   deviceID++;
 }
@@ -131,7 +125,11 @@ function messageHandler(ws, message, isBinary) {
     emitter.emit(`${targetServerName}::login`, app, users.get(ws));
   } else {
     const data = JSON.parse(decoder.decode(message));
-    emitter.emit(`${targetServerName}::location`, app, data);
+    emitter.emit(`${targetServerName}::location`, app, data, message);
+
+    /**
+     * require chat message emit
+     */
     // 일반 json stringify 메세지
     // const strings = decoder.decode(new Uint8Array(message));
     // const json = JSON.parse(strings);

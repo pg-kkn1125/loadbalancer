@@ -1,32 +1,19 @@
 {
-  "name": "create-react-app",
-  "version": "5.0.0",
-  "private": true,
+  "name": "frontend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
   "scripts": {
-    "start": "set PORT=5000 && react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "vite --host localhost --port 5000 --cors ./"
   },
   "dependencies": {
-    "@emotion/react": "latest",
-    "@emotion/styled": "latest",
-    "@mui/material": "latest",
     "protobufjs": "^7.1.2",
-    "react": "latest",
-    "react-dom": "latest",
-    "react-scripts": "latest"
+    "vite": "^3.1.6"
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "devDependencies": {
+    "@types/protobufjs": "^6.0.0"
   }
 }

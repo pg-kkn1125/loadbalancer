@@ -9,11 +9,24 @@ class SpaceBalancer {
   }
 
   /**
+   * 해당 공간의 채널에 있는 플레이어 가져오기
+   * @param {string} sp - 공간
+   * @param {number} ch - 채널
+   * @returns
+   */
+  getPlayers(sp, ch) {
+    return this.filter(
+      Array.from(this.selectChannel(sp, ch).values()),
+      (origin) => origin.type === "player"
+    );
+  }
+
+  /**
    * 채널 증가시 변경시키는 메서드
    * @param {User} user - 유저 객체
    * @param {number} changeChannelNumber - 변경된 채널 넘버
    */
-  changeChannel(user, changeChannelNumber) {
+  changeUserChannel(user, changeChannelNumber) {
     Object.assign(user, {
       channel: changeChannelNumber,
     });
@@ -229,7 +242,10 @@ class SpaceBalancer {
    * @param {User} user
    */
   overrideUser(user) {
-    this.selectChannel(user.space, user.channel).set(user.deviceID, user);
+    this.selectChannel(user.space, user.channel).set(
+      String(user.deviceID),
+      user
+    );
   }
 
   /**
@@ -259,7 +275,7 @@ class SpaceBalancer {
     // 빈 채널이 있다면 빈 채널 인덱스를 사용자의 채널에 저장하고 해당 채널에 할당
     if (foundHoleChannelIndex > -1) {
       const realChannelNumber = foundHoleChannelIndex + 1;
-      this.changeChannel(user, realChannelNumber);
+      this.changeUserChannel(user, realChannelNumber);
       const foundHoleChannel = this.selectSpace(user.space).get(
         String(user.channel)
       );
@@ -279,6 +295,7 @@ class SpaceBalancer {
       });
       last.set(String(user.deviceID), user);
     }
+    return user;
   }
 }
 

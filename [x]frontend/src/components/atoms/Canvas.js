@@ -8,12 +8,28 @@ let toggle = {
   a: false,
   d: false,
 };
-
 const SPEED = 5;
-let select = null;
 
-function Canvas({ ws, me, setWs, users, setUsers }) {
+function Canvas({ ws, myId, usersMap, users }) {
   const canvasRef = useRef(null);
+
+  const sendData = () => {
+    const player = usersMap.get(myId);
+    if (player) {
+      console.log(player);
+      ws.send(
+        JSON.stringify(
+          Object.assign(player, {
+            deviceID: player.deviceID,
+            pox: player.pox,
+            poy: player.poy,
+            poz: player.poz,
+            roy: player.roy,
+          })
+        )
+      );
+    }
+  };
 
   useEffect(() => {
     const { current } = canvasRef;
@@ -21,44 +37,34 @@ function Canvas({ ws, me, setWs, users, setUsers }) {
     const ctx = current.getContext("2d");
     current.width = innerWidth;
     current.height = innerHeight;
-
     function animate() {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
       if (users.length > 0) {
         users.forEach((user) => {
-          ctx.clearRect(0, 0, innerWidth, innerHeight);
-
           ctx.fillText(user.nickname, user.pox + 35 / 2, user.poy - 15);
           ctx.textAlign = "center";
           ctx.fillRect(user.pox, user.poy, 35, 35);
         });
       }
 
-      console.log(me.current)
-      if (
-        ws &&
-        (select = users.find((user) => me.current.deviceID === user.deviceID))
-      ) {
+      let player = usersMap.get(myId);
+      if (player) {
         if (toggle.w) {
-          select.poy -= SPEED;
-        } else if (toggle.s) {
-          select.poy += SPEED;
-        } else if (toggle.a) {
-          select.pox -= SPEED;
-        } else if (toggle.d) {
-          select.pox += SPEED;
+          player.poy -= SPEED;
+        }
+        if (toggle.s) {
+          player.poy += SPEED;
+        }
+        if (toggle.a) {
+          player.pox -= SPEED;
+        }
+        if (toggle.d) {
+          player.pox += SPEED;
         }
 
-        ws.send(
-          JSON.stringify(
-            Object.assign(select, {
-              deviceID: select.deviceID,
-              pox: select.pox,
-              poy: select.poy,
-              poz: select.poz,
-              roy: select.roy,
-            })
-          )
-        );
+        if ([...Object.values(toggle)].some((tg) => tg === true)) {
+          sendData();
+        }
       }
 
       frame += 0.1;
@@ -82,7 +88,7 @@ function Canvas({ ws, me, setWs, users, setUsers }) {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [users]);
+  }, [users, myId]);
 
   return (
     <Box
