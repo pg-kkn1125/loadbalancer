@@ -60,7 +60,8 @@ function upgradeHandler(res, req, context) {
       .map((q) => q.split("="))
   );
   const href = req.getHeader("origin") + req.getUrl() + "?" + req.getQuery();
-  const host = req.getHeader("origin").match(/http(s)?:\/\/([\w\W]+)/)[2];
+  const host =
+    req.getHeader("origin").match(/http(s)?:\/\/([\w\W]+)/)?.[2] || "test";
   res.upgrade(
     {
       url: req.getUrl(),
@@ -148,6 +149,16 @@ function closeHandler(ws, code, message) {
   console.log("WebSocket closed");
   emitter.emit(`${targetServerName}::close`, app, users.get(ws));
 }
+
+/**
+ * 서버 부하 검사
+ */
+emitter.on(`receive::balancer`, (state, serverName) => {
+  const serverNumber = Number(serverName.match(/[\d]+/)[0]);
+  if (state === "busy") {
+  } else if (state === "comfortable") {
+  }
+});
 
 /**
  * 프로세스 죽었을 때 SIGINT 이벤트 전달

@@ -114,9 +114,12 @@ function renderLogin(ws) {
   socket = ws;
   const target = logins;
   target.innerHTML = `<form onsubmit="return false;" id="loginWindow">
-		<input id="nickName" type="text" class="border-set padding-set" />
+		<input id="nickName" type="text" class="border-set padding-set" autofocus />
 		<button class="border-set padding-set btn" onclick="handleLogin()">Login</button>
 	</form>`;
+  loginWindow.onload = () => {
+    loginWindow.focus();
+  };
 }
 
 function handleLogin() {
@@ -141,7 +144,7 @@ function handleLogin() {
   setTimeout(() => {
     const found = users.find((user) => user.nickname === nickNames);
     if (!found) {
-			/* 사용량이 많을 때 로그인 안되는 이슈 발생 */
+      /* 사용량이 많을 때 로그인 안되는 이슈 발생 */
       renderLogin(socket);
     }
   }, 100);
@@ -204,7 +207,7 @@ function animate() {
       player.pox += SPEED;
     }
 
-    if ([...Object.values(toggle)].some((tg) => tg === true)) {
+    if (Object.values(toggle).some((tg) => tg === true)) {
       sendData();
     }
   }
@@ -263,9 +266,35 @@ window.addEventListener("blur", () => {
 });
 
 function handleKeyDown(e) {
-  toggle[e.key] = true;
+  switch (e.key) {
+    case "w":
+      toggle.w = true;
+      break;
+    case "s":
+      toggle.s = true;
+      break;
+    case "a":
+      toggle.a = true;
+      break;
+    case "d":
+      toggle.d = true;
+      break;
+  }
 }
 
 function handleKeyUp(e) {
-  toggle[e.key] = false;
+  switch (e.key) {
+    case "w":
+      toggle.w = false;
+      break;
+    case "s":
+      toggle.s = false;
+      break;
+    case "a":
+      toggle.a = false;
+      break;
+    case "d":
+      toggle.d = false;
+      break;
+  }
 }

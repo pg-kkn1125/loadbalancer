@@ -52,7 +52,7 @@ class Queue {
   }
 
   size(ch) {
-    return Number(this.#selectChannel(ch).count);
+    return parseInt(this.#selectChannel(ch).count);
   }
 }
 

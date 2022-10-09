@@ -87,6 +87,7 @@ emitter.on(`${serverName}::close`, (app, user) => {
     `${serverName}/space${user.space.toLowerCase()}/channel${user.channel}`,
     String(user.deviceID)
   );
+  checkLog(user.space, user.channel);
 });
 
 process.send("ready");
@@ -103,6 +104,7 @@ setInterval(() => {
 }, 8);
 
 let frameA = 0;
+let isBusy = false;
 
 function locationBroadcastToChannel(sp) {
   frameA += 0.1;
@@ -110,12 +112,27 @@ function locationBroadcastToChannel(sp) {
     for (let channel of spaces.selectSpace(sp).keys()) {
       if (locationMap[sp].size(channel) > 0) {
         const q = locationMap[sp].get(channel);
+        // console.time("start check latency");
+        const t0 = performance.now();
         app.publish(
           `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
           q,
           true,
           true
         );
+        const t1 = performance.now();
+        const timeGap = t1 - t0;
+        if (timeGap > 0.9) {
+          isBusy = true;
+          emitter.emit("receive::balancer", "busy", serverName);
+        } else {
+          if (isBusy) {
+            isBusy = false;
+            emitter.emit("receive::balancer", "comfortable", serverName);
+          }
+        }
+        // console.log(t1 - t0, `app publish latency`);
+        // console.timeEnd("start check latency");
       }
     }
   }

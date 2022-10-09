@@ -7,7 +7,7 @@
   "license": "ISC",
   "description": "",
   "scripts": {
-    "start": "vite --host localhost --port 5000 --cors ./"
+    "start": "vite --host 0.0.0.0 --port 5000 --cors ./"
   },
   "dependencies": {
     "protobufjs": "^7.1.2",

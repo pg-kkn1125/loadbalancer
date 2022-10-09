@@ -47,21 +47,27 @@ const chat = {
 /**
  * 서버 세팅
  */
-const SERVER_AMOUNT = 1;
-const servers = new Array(SERVER_AMOUNT).fill(0).map((e, index) => ({
-  name: `server${index + 1}`,
-  script: `./src/workers/server.js`,
-  watch: ["./src/workers"],
-  wait_ready: true,
-  instances: 1,
-  ...{
-    ...Object.assign(envOptions, {
-      env: { ...envOptions.env, SERVER_NAME: `server${index + 1}` },
-    }),
-  },
-  ...watchOptions,
-  ...statusOptions,
-}));
+const SERVER_MAX_AMOUNT = 9;
+const generateServer = (amount) =>
+  new Array(amount).fill(0).map((a, i) => ({
+    name: `server${i + 1}`,
+    script: `./src/workers/server.js`,
+    watch: ["./src/workers"],
+    wait_ready: true,
+    instances: 1,
+    ...{
+      ...Object.assign(envOptions, {
+        env: { ...envOptions.env, SERVER_NAME: `server${i + 1}` },
+      }),
+    },
+    ...watchOptions,
+    ...statusOptions,
+  }));
+
+const startServers = (amount) =>
+  generateServer(amount).forEach((server) => {
+    pm2.start(server, controlFn(server.name));
+  });
 
 /**
  * 리시브 서버 세팅
@@ -102,9 +108,7 @@ pm2.connect(function (err) {
   setTimeout(() => {
     pm2.start(chat, controlFn("chat"));
     setTimeout(() => {
-      servers.forEach((server, idx) => {
-        pm2.start(server, controlFn("server" + (idx + 1)));
-      });
+      startServers(1);
       setTimeout(() => {
         pm2.start(receive, controlFn("app"));
       }, 1000);
@@ -136,3 +140,5 @@ function controlFn(name) {
 //     production: production,
 //   },
 // };
+
+module.exports = { SERVER_MAX_AMOUNT, generateServer, startServers };
