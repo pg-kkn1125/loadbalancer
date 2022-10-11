@@ -2,6 +2,7 @@ const uWs = require("uWebSockets.js");
 const { emitter } = require("./src/emitter");
 const User = require("./src/models/User");
 const { Message } = require("./src/protobuf");
+const pm2 = require("pm2");
 
 /**
  * PORT               === 서버 포트
@@ -20,7 +21,7 @@ const sockets = new Map();
 const users = new Map();
 let isDisableKeepAlive = false;
 let deviceID = 0;
-let se = 1;
+let currentServer = 2;
 let sp = "a"; // 공간은 URL 배정 받음
 let targetServerName = "";
 const decoder = new TextDecoder();
@@ -92,7 +93,7 @@ function openHandler(ws) {
     type: "viewer",
     timestamp: new Date().getTime(),
     deviceID: deviceID,
-    server: se,
+    server: currentServer,
     space: sp,
     // channel: ch,
     host: host,
@@ -154,9 +155,14 @@ function closeHandler(ws, code, message) {
  * 서버 부하 검사
  */
 emitter.on(`receive::balancer`, (state, serverName) => {
-  const serverNumber = Number(serverName.match(/[\d]+/)[0]);
+  const serverNumber = Number(serverName.match(/server([\d]+)/)[1]);
+  // console.log(serverNumber);
   if (state === "busy") {
+    currentServer += 1; // 서버 수 증가
+    console.log(currentServer, "번 서버 실행!");
+    console.log("it's too busy!!");
   } else if (state === "comfortable") {
+    console.log("comfortable!");
   }
 });
 

@@ -15,9 +15,15 @@
 
 ## 프론트 구성
 
+vite로 환경을 구축. port는 5000번.
+
+```bash
+yarn start
+```
+
 ### 로그인
 
-로그인 창 시점에서 접속되어있는 플레이어가 움직이는 데이터를 받아 표시
+로그인 창 시점에서 접속되어 있는 플레이어가 움직이는 데이터를 받아 표시.
 
 ### 로그인 후
 
@@ -41,11 +47,33 @@ PM2에서 지원하는 클러스터를 서버라 함
 
 ### 뷰어 데이터 규격
 
-작성 중 ...
+```javascript
+const viewer = {
+  id: 1,
+  type: "viewer",
+  timestamp: new Date().getTime(),
+  deviceID: deviceID,
+  server: se,
+  space: sp,
+  // channel: ch,
+  host: host,
+};
+```
 
 ### 플레이어 데이터 규격
 
-작성 중 ...
+```javascript
+const player = {
+  id: 1,
+  type: "player",
+  timestamp: new Date().getTime(),
+  deviceID: deviceID,
+  server: se,
+  space: sp,
+  // channel: ch,
+  host: host,
+};
+```
 
 ### 로케이션 데이터 규격
 

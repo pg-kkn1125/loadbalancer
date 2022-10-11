@@ -69,6 +69,7 @@ function handleMessage(message) {
         usersMap.set(object.deviceID, object);
       } else {
         // 유저가 움직일 때 브로드캐스트로 받음
+        console.log("latency", new Date() - new Date(object.time), "ms");
         if (!object) return;
         const user = usersMap.get(object.deviceID);
         if (user) {
@@ -115,7 +116,7 @@ function renderLogin(ws) {
   const target = logins;
   target.innerHTML = `<form onsubmit="return false;" id="loginWindow">
 		<input id="nickName" type="text" class="border-set padding-set" autofocus />
-		<button class="border-set padding-set btn" onclick="handleLogin()">Login</button>
+		<button class="border-set padding-set btn" type="button" onclick="handleLogin()">Login</button>
 	</form>`;
   loginWindow.onload = () => {
     loginWindow.focus();

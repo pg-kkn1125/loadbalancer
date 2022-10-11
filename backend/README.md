@@ -2,4 +2,20 @@
 
 ## architecture
 
-![image](https://user-images.githubusercontent.com/71887242/194862888-cfc2adf5-f268-49c1-baf4-5a57e4f7eed5.png)
+![image](https://user-images.githubusercontent.com/113876485/194984233-c3ef2205-4212-4c19-9675-375d7c04636f.png)
+
+서버 구조는 pm2 프로세스 관리자를 핵심으로 하고 있다. 용어는 다음과 같이 정리된다.
+
+1. 서버
+   - pm2 thread (cluster).
+   - 스레드는 서버 부하 증가 시 일정 기준에 의해 증설되도록 한다.
+   - 증설된 서버에 새로운 사용자를 유입시킨다.
+2. 공간
+   - 각 서버 내 5개의 공간을 가짐.
+   - collection Map 형태.
+   - 사용자는 URL에 공간 정보를 받아 입장.
+3. 채널
+   - 사용자를 담는 Map 객체이다.
+   - 채널당 제한 인원은 50명이다.
+   - 50명 초과 시 채널을 증설한다.
+   - 증설된 채널에 사용자를 유입시킨다.

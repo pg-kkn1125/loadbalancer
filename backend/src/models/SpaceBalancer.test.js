@@ -109,7 +109,11 @@ describe("사용자 추가 시 채널 증설 테스트", () => {
     expect(sb.checkChannelUserAmount("a", 1)).toEqual(50);
   });
   test("채널 인원 확인 - 2", () => {
+    console.log(sb.selectChannel("a", 2).get('50').channel)
     expect(sb.checkChannelUserAmount("a", 2)).toEqual(1);
+  });
+  test("채널 인원 확인 - 3", () => {
+    expect(sb.selectChannel("a", 2).size).toEqual(1);
   });
   test("채널 내 뷰어 확인", () => {
     const viewer = new User({

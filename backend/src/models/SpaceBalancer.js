@@ -289,11 +289,18 @@ class SpaceBalancer {
         });
       }
 
-      const [last, index] = this.selectLastChannel(user.space);
-      Object.assign(user, {
-        channel: index,
-      });
-      last.set(String(user.deviceID), user);
+      const result = this.selectLastChannel(user.space);
+      if (result) {
+        const [last, index] = result;
+        Object.assign(user, {
+          channel: index,
+        });
+        last.set(String(user.deviceID), user);
+      } else {
+        Object.assign(user, {
+          channel: user.channel,
+        });
+      }
     }
     return user;
   }
