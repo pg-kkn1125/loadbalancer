@@ -16,6 +16,7 @@ let toggle = {
 const SPEED = 5;
 const users = [];
 const usersMap = new Map();
+const HOST = /* 'localhost' */ "192.168.88.234";
 const PORT = Number(import.meta.env.SERVER_PORT || 4000);
 
 const param = Object.fromEntries(
@@ -26,7 +27,7 @@ const param = Object.fromEntries(
 );
 
 const connect = () => {
-  ws = new WebSocket(`ws://localhost:${PORT}/server?sp=${param.sp || "A"}`);
+  ws = new WebSocket(`ws://${HOST}:${PORT}/server?sp=${param.sp || "A"}`);
   ws.binaryType = "arraybuffer";
   ws.onopen = handleOpen;
   ws.onmessage = handleMessage;
@@ -150,6 +151,8 @@ function handleLogin() {
   }).toJSON();
   // 작동 안되는 이유는 User class에서 type없으면 모두 널 값이 되도록 해서.
 
+  // 클라이언트에서 보낼 때 JSON.stringify로 - 2022-10-12 19:23:30
+  // 로케이션 데이터만 protobuf - 2022-10-12 19:23:32
   socket.send(Message.encode(declareProtobuf.setMessage(user)).finish());
 
   clear();

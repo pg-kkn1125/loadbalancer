@@ -1,8 +1,8 @@
 /**
  * app을 가져와야 emitter가 연동 됨
  */
-const { app } = require("../../app");
-const { emitter } = require("../emitter/");
+const { app, emitter } = require("../../app");
+// const { emitter } = require("../emitter/");
 const Queue = require("../models/Queue");
 const SpaceBalancer = require("../models/SpaceBalancer");
 const pm2 = require("pm2");

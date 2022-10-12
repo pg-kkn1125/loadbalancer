@@ -48,7 +48,7 @@ const chat = {
  * 서버 세팅
  */
 const server = (number) => ({
-  name: `server${number + 1}`,
+  name: `server${number + 3}`,
   script: `./src/workers/server.js`,
   watch: ["./src/workers"],
   wait_ready: true,
@@ -58,7 +58,7 @@ const server = (number) => ({
       env: {
         ...envOptions.env,
         SERVER_NAME: `server`,
-        SERVER_NUMBER: number + 1,
+        SERVER_NUMBER: number + 3,
         SERVER_COUNT: number,
       },
     }),
@@ -112,14 +112,14 @@ pm2.connect(function (err) {
   }
 
   setTimeout(() => {
-    startServers(/* 1 */ SERVER_MAX_AMOUNT);
-    setTimeout(() => {
-      pm2.start(chat, controlFn("chat"));
-      setTimeout(() => {
-        pm2.start(receive, controlFn("app"));
-      }, 1000);
-    }, 10);
+    pm2.start(receive, controlFn("app"));
   }, 10);
+  setTimeout(() => {
+    pm2.start(chat, controlFn("chat"));
+  }, 10);
+  setTimeout(() => {
+    startServers(/* 1 */ SERVER_MAX_AMOUNT);
+  }, 1000);
 });
 
 function controlFn(name) {

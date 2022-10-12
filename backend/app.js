@@ -1,8 +1,10 @@
 const uWs = require("uWebSockets.js");
-const { emitter } = require("./src/emitter");
+// const { emitter } = require("./src/emitter");
 const User = require("./src/models/User");
 const { Message } = require("./src/protobuf");
 const pm2 = require("pm2");
+const EventEmitter = require("node:events");
+const emitter = new EventEmitter();
 
 /**
  * PORT               === 서버 포트
@@ -178,4 +180,4 @@ process.on("SIGINT", function () {
 
 process.send("ready");
 
-module.exports = { app };
+module.exports = { app, emitter };
