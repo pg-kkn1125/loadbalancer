@@ -18,10 +18,9 @@ const locationMap = {
   e: new Queue(this.queueLimit),
 };
 
-const serverPrefix = process.env.SERVER_NAME;
-const serverCount = process.env.SERVER_COUNT;
-const serverName = serverPrefix + serverCount;
-
+const { SERVER_NAME, SERVER_PID } = process.env;
+const serverName = SERVER_NAME + (SERVER_PID - 1);
+console.log(serverName);
 const users = new Map();
 const spaces = new SpaceBalancer(50);
 
@@ -213,7 +212,7 @@ function locationBroadcastToChannel(sp) {
 function getServer() {
   return new Promise((resolve, reject) => {
     pm2.list((err, list) => {
-      const found = list.find((item) => item.pm_id === Number(serverCount));
+      const found = list.find((item) => item.pm_id === Number(SERVER_PID));
       if (found) {
         resolve(found);
       } else {
@@ -296,5 +295,9 @@ function checkLog(sp, ch, disable = false) {
       .padStart(3, " ")} 명`.padStart(22, " ")
   );
 }
+
+process.on("process:msg", (packet) => {
+  console.log(packet);
+});
 
 module.exports = { users, spaces };

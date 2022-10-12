@@ -21,7 +21,7 @@ const sockets = new Map();
 const users = new Map();
 let isDisableKeepAlive = false;
 let deviceID = 0;
-let currentServer = 2;
+let currentServer = 1;
 let sp = "a"; // 공간은 URL 배정 받음
 let targetServerName = "";
 const decoder = new TextDecoder();
@@ -98,7 +98,7 @@ function openHandler(ws) {
     // channel: ch,
     host: host,
   }).toJSON();
-
+  
   /**
    * 전체 서버 구독
    */
@@ -108,7 +108,8 @@ function openHandler(ws) {
 
   targetServerName = `server${user.server}`;
   emitter.emit(`${targetServerName}::open`, app, ws, users.get(ws));
-
+  console.log(emitter);
+  console.log(targetServerName);
   deviceID++;
 }
 

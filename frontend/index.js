@@ -16,9 +16,11 @@ let toggle = {
 const SPEED = 5;
 const users = [];
 const usersMap = new Map();
-const HOST = /* 'localhost' */ "192.168.88.234";
-const PORT = Number(import.meta.env.SERVER_PORT || 4000);
-
+const HOST =
+  import.meta.env.IS_TEST === "test" ? "192.168.88.234" : "localhost";
+const PORT = Number(import.meta.env.VITE_SERVER_PORT || 4000);
+console.log(import.meta.env.VITE_SERVER_PORT)
+console.log(import.meta.env.VITE_IS_TEST)
 const param = Object.fromEntries(
   location.search
     .slice(1)
