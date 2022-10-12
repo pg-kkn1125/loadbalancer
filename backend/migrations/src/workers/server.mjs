@@ -1,11 +1,11 @@
 /**
  * app을 가져와야 emitter가 연동 됨
  */
-const { app } = require("../../app");
-const Queue = require("../models/Queue");
-const SpaceBalancer = require("../models/SpaceBalancer");
-const pm2 = require("pm2");
-const { emitter } = require("../emitter");
+import { app } from "../../app.js";
+import Queue from "../models/Queue.js";
+import SpaceBalancer from "../models/SpaceBalancer.js";
+import pm2 from "pm2";
+import { emitter } from "../emitter.js";
 let increaseServer = false;
 let overflowCount = 3;
 
@@ -297,4 +297,4 @@ function checkLog(sp, ch, disable = false) {
   );
 }
 
-module.exports = { users, spaces };
+export { users, spaces };

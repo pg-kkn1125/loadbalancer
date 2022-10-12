@@ -1,4 +1,4 @@
-const pm2 = require("pm2");
+import pm2 from "pm2";
 
 /**
  * 공통 속성
@@ -147,10 +147,4 @@ function controlFn(name) {
 //   },
 // };
 
-module.exports = {
-  SERVER_MAX_AMOUNT,
-  server,
-  generateServer,
-  startServers,
-  controlFn,
-};
+export { SERVER_MAX_AMOUNT, server, generateServer, startServers, controlFn };
