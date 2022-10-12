@@ -7,7 +7,7 @@ const envOptions = {
   env: {
     // 실행 시 환경 변수 설정
     HOST: "localhost",
-    PORT: 3000,
+    PORT: process.env.NODE_ENV === "development" ? 4000 : 3000,
   },
   env_production: {
     // 개발 환경별 환경 변수 설정
@@ -48,7 +48,7 @@ const chat = {
  * 서버 세팅
  */
 const server = (number) => ({
-  name: `server${number}`,
+  name: `server${number + 1}`,
   script: `./src/workers/server.js`,
   watch: ["./src/workers"],
   wait_ready: true,
@@ -58,8 +58,8 @@ const server = (number) => ({
       env: {
         ...envOptions.env,
         SERVER_NAME: `server`,
-        SERVER_NUMBER: number,
-        SERVER_COUNT: number + 1,
+        SERVER_NUMBER: number + 1,
+        SERVER_COUNT: number,
       },
     }),
   },
@@ -68,7 +68,7 @@ const server = (number) => ({
 });
 const SERVER_MAX_AMOUNT = 10;
 const generateServer = (amount) =>
-  new Array(amount).fill(0).map((a, i) => server(i + 1));
+  new Array(amount).fill(0).map((a, i) => server(i));
 
 const startServers = (amount) =>
   generateServer(amount).forEach((server) => {
@@ -112,11 +112,11 @@ pm2.connect(function (err) {
   }
 
   setTimeout(() => {
-    pm2.start(receive, controlFn("app"));
+    startServers(/* 1 */ SERVER_MAX_AMOUNT);
     setTimeout(() => {
       pm2.start(chat, controlFn("chat"));
       setTimeout(() => {
-        startServers(/* 1 */ SERVER_MAX_AMOUNT);
+        pm2.start(receive, controlFn("app"));
       }, 1000);
     }, 10);
   }, 10);

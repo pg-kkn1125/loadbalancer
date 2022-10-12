@@ -16,7 +16,7 @@ const pm2 = require("pm2");
  * targetServerName   === 타겟 서버 명
  * decoder            === message가 바이너리가 아닐 때
  */
-const PORT = Number(process.env.PORT || 3000);
+const PORT = process.env.NODE_ENV?.trim() === "development" ? 4000 : 3000;
 const sockets = new Map();
 const users = new Map();
 let isDisableKeepAlive = false;

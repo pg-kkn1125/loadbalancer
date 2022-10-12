@@ -263,6 +263,11 @@ class SpaceBalancer {
       this.addChannel(user.space, user.channel);
     }
 
+    if (this.hasUser(user.space, user.channel)) {
+      this.overrideUser(user);
+      return;
+    }
+
     // 공간 선택
     const spaces = this.selectSpace(user.space);
     // 채널 배열로 변환

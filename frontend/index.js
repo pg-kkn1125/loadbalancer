@@ -16,6 +16,7 @@ let toggle = {
 const SPEED = 5;
 const users = [];
 const usersMap = new Map();
+const PORT = Number(import.meta.env.SERVER_PORT || 4000);
 
 const param = Object.fromEntries(
   location.search
@@ -25,7 +26,7 @@ const param = Object.fromEntries(
 );
 
 const connect = () => {
-  ws = new WebSocket(`ws://localhost:3000/server?sp=${param.sp || "A"}`);
+  ws = new WebSocket(`ws://localhost:${PORT}/server?sp=${param.sp || "A"}`);
   ws.binaryType = "arraybuffer";
   ws.onopen = handleOpen;
   ws.onmessage = handleMessage;
@@ -34,11 +35,22 @@ const connect = () => {
 };
 
 connect();
+// for (let i = 0; i < 50; i++) {
+//   connect();
+// }
 
 function handleOpen(e) {
   console.log("서버에 연결되었습니다.");
   renderLogin(ws);
+  // console.log(socket);
+  // let loop = setInterval(() => {
+  //   if (socket && socket.readyState === 1) {
+  //     handleLogin();
+  //     clearInterval(loop);
+  //   }
+  // }, 100);
 }
+
 function handleMessage(message) {
   if (message.data instanceof Blob) {
     /*  */
@@ -69,7 +81,7 @@ function handleMessage(message) {
         usersMap.set(object.deviceID, object);
       } else {
         // 유저가 움직일 때 브로드캐스트로 받음
-        console.log("latency", new Date() - new Date(object.time), "ms");
+        // console.log("latency", new Date() - new Date(object.time), "ms"); // latency 테스트용
         if (!object) return;
         const user = usersMap.get(object.deviceID);
         if (user) {
@@ -124,7 +136,7 @@ function renderLogin(ws) {
 }
 
 function handleLogin() {
-  const nickNames = nickName.value;
+  const nickNames = nickName?.value || "test";
   const user = new User({
     id: 1,
     type: "player",

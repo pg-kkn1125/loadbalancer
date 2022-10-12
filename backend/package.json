@@ -17,6 +17,7 @@
     "reset": "pm2 reset all ",
     "log": "pm2 log",
     "monit": "pm2 monit",
+    "monitor": "pm2 monitor PM2 Plus Monitoring",
     "deleteall": "pm2 delete all",
     "killall": "yarn stop && yarn deleteall && pm2 kill",
     "flush": "pm2 flush all",

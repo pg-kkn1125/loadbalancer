@@ -90,7 +90,7 @@ emitter.on(`${serverName}::location`, (app, location) => {
 });
 
 // setTimeout(() => {
-testUser(500);
+// testUser(500);
 // }, 5000);
 function testUser(amount = 1) {
   const usersList = new Array(amount).fill(0).map((user, idx) => ({
@@ -273,19 +273,27 @@ function checkLog(sp, ch, disable = false) {
   const spaceUserCount = spaces.checkSpaceUserAmount(sp);
   console.log(
     `[${sp}공간|${ch}채널]`,
-    `채널 내 유저 인원: ${channelUserCount} 명`.padStart(20, " ")
+    `채널 내 유저 인원: ${channelUserCount
+      .toString()
+      .padStart(3, " ")} 명`.padStart(22, " ")
   );
   console.log(
     `[${sp}공간|${ch}채널]`,
-    `채널 내 뷰어 인원: ${channelViewerCount} 명`.padStart(20, " ")
+    `채널 내 뷰어 인원: ${channelViewerCount
+      .toString()
+      .padStart(3, " ")} 명`.padStart(22, " ")
   );
   console.log(
     `[${sp}공간|${ch}채널]`,
-    `채널 내 플레이어 인원: ${channelPlayerCount} 명`.padStart(18, " ")
+    `채널 내 플레이어 인원: ${channelPlayerCount
+      .toString()
+      .padStart(3, " ")} 명`.padStart(20, " ")
   );
   console.log(
     `[${sp}공간|${ch}채널]`,
-    `공간 내 유저 인원: ${spaceUserCount} 명`.padStart(20, " ")
+    `공간 내 유저 인원: ${spaceUserCount
+      .toString()
+      .padStart(3, " ")} 명`.padStart(22, " ")
   );
 }
 
