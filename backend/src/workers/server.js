@@ -20,7 +20,6 @@ const locationMap = {
 
 const { SERVER_NAME, SERVER_PID } = process.env;
 const serverName = SERVER_NAME + (SERVER_PID - 1);
-console.log(serverName);
 const users = new Map();
 const spaces = new SpaceBalancer(50);
 
@@ -31,7 +30,7 @@ emitter.on(`${serverName}::open`, (app, ws, viewer) => {
     channel: ch,
   });
   const renewViewer = spaces.addUserInEmptyChannel(viewer);
-  users.set(renewViewer.deviceID, renewViewer);
+  users.set(String(renewViewer.deviceID), renewViewer);
   ws.subscribe(String(renewViewer.deviceID));
   ws.subscribe(
     `${serverName}/space${renewViewer.space.toLowerCase()}/channel${
@@ -40,7 +39,8 @@ emitter.on(`${serverName}::open`, (app, ws, viewer) => {
   );
 
   /* 로그인 시 플레이어 전달 */
-  app.publish(
+  tryPublish(
+    app,
     String(renewViewer.deviceID),
     JSON.stringify(spaces.getPlayers(renewViewer.space, renewViewer.channel))
   );
@@ -49,10 +49,12 @@ emitter.on(`${serverName}::open`, (app, ws, viewer) => {
 });
 
 emitter.on(`${serverName}::login`, (app, player) => {
+  console.log("login");
   const renewPlayer = spaces.addUserInEmptyChannel(player);
-  users.set(renewPlayer.deviceID, renewPlayer);
-
-  app.publish(
+  users.set(String(renewPlayer.deviceID), renewPlayer);
+  console.log(renewPlayer);
+  tryPublish(
+    app,
     String(renewPlayer.deviceID),
     new TextEncoder().encode(JSON.stringify(renewPlayer))
   );
@@ -66,25 +68,33 @@ emitter.on(`${serverName}::login`, (app, player) => {
 });
 
 emitter.on(`${serverName}::location`, (app, location) => {
-  const player = users.get(location.deviceID);
-  Object.assign(player, location);
-  users.set(location.deviceID, player);
+  console.log(`============================`);
+  console.log(location);
+  console.log(location.deviceID);
+  // console.log(users);
+  const player = users.get(String(location.deviceID));
+  const replacePlayer = Object.assign(player, location);
+  users.set(String(location.deviceID), replacePlayer);
 
-  spaces.overrideUser(player);
+  spaces.overrideUser(replacePlayer);
 
   const replaceUser = spaces.selectUser(
-    player.space,
-    player.channel,
-    player.deviceID
+    replacePlayer.space,
+    replacePlayer.channel,
+    replacePlayer.deviceID
   );
 
-  locationMap[replaceUser.space.toLowerCase()].enter(replaceUser.channel, {
-    deviceID: replaceUser.deviceID,
-    pox: replaceUser.pox,
-    poy: replaceUser.poy,
-    poz: replaceUser.poz,
-    roy: replaceUser.roy,
-  });
+  locationMap[replaceUser.space.toLowerCase()].enter(
+    replaceUser.channel,
+    JSON.stringify({
+      deviceID: replaceUser.deviceID,
+      pox: replaceUser.pox,
+      poy: replaceUser.poy,
+      poz: replaceUser.poz,
+      roy: replaceUser.roy,
+    })
+  );
+  console.log(replacePlayer.deviceID);
   // checkLog(replaceUser.space, replaceUser.channel);
 });
 
@@ -124,7 +134,7 @@ function testUser(amount = 1) {
   setInterval(() => {
     usersList.forEach((user) => {
       const location = {
-        deviceID: user.deviceID,
+        deviceID: String(user.deviceID),
         pox: Math.random() * 100,
         poy: Math.random() * 100,
         poz: Math.random() * 100,
@@ -156,12 +166,17 @@ function testUser(amount = 1) {
 
 emitter.on(`${serverName}::close`, (app, user) => {
   console.log(user.deviceID, `번 유저 제거`);
-  spaces.deleteUser(users.get(user.deviceID));
-  app.publish(
-    `${serverName}/space${user.space.toLowerCase()}/channel${user.channel}`,
-    String(user.deviceID)
+  const foundUser = JSON.parse(
+    JSON.stringify(spaces.selectUser(user.space, user.channel, user.deviceID))
   );
-  checkLog(user.space, user.channel);
+  spaces.deleteUser(users.get(foundUser.deviceID));
+  app.publish(
+    `${serverName}/space${foundUser.space.toLowerCase()}/channel${
+      foundUser.channel
+    }`,
+    String(foundUser.deviceID)
+  );
+  checkLog(foundUser.space, foundUser.channel);
 });
 
 process.send("ready");
@@ -188,12 +203,13 @@ function locationBroadcastToChannel(sp) {
         // const start2 = performance.now();
         // new Promise((resolve, reject) => {
         // return resolve(
-        app.publish(
+        tryPublish(
+          app,
           `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
           q,
-          true,
           true
         );
+
         //   );
         // }).then((result) => {
         //   const end = performance.now();
@@ -294,6 +310,18 @@ function checkLog(sp, ch, disable = false) {
       .toString()
       .padStart(3, " ")} 명`.padStart(22, " ")
   );
+}
+
+function tryPublish(app, target, data, isLocation = false) {
+  try {
+    if (isLocation) {
+      app.publish(target, data, true, true);
+    } else {
+      app.publish(target, data);
+    }
+  } catch (e) {
+    // console.log(e);
+  }
 }
 
 process.on("process:msg", (packet) => {

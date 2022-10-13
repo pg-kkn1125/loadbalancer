@@ -32,8 +32,6 @@ class LocationQueue {
 class Queue {
   #channels = new Map();
 
-  constructor() {}
-
   #selectChannel(ch) {
     if (!this.#channels.has(String(ch))) {
       this.#channels.set(String(ch), new LocationQueue());

@@ -4,7 +4,7 @@ import User from "./src/model/user";
 /**
  * general variables
  */
-let ws = null;
+let ws = new Map();
 let myId = null;
 let socket = null;
 let toggle = {
@@ -19,8 +19,8 @@ const usersMap = new Map();
 const HOST =
   import.meta.env.IS_TEST === "test" ? "192.168.88.234" : "localhost";
 const PORT = Number(import.meta.env.VITE_SERVER_PORT || 4000);
-console.log(import.meta.env.VITE_SERVER_PORT)
-console.log(import.meta.env.VITE_IS_TEST)
+console.log(import.meta.env.VITE_SERVER_PORT);
+console.log(import.meta.env.VITE_IS_TEST);
 const param = Object.fromEntries(
   location.search
     .slice(1)
@@ -28,23 +28,50 @@ const param = Object.fromEntries(
     .map((q) => q.split("="))
 );
 
-const connect = () => {
-  ws = new WebSocket(`ws://${HOST}:${PORT}/server?sp=${param.sp || "A"}`);
-  ws.binaryType = "arraybuffer";
-  ws.onopen = handleOpen;
-  ws.onmessage = handleMessage;
-  ws.onerror = handleError;
-  ws.onclose = handleClose;
+const connect = (i) => {
+  myId = String(i);
+  ws.set(
+    String(i),
+    new WebSocket(`ws://${HOST}:${PORT}/server?sp=${param.sp || "A"}`)
+  );
+  ws.get(String(i)).binaryType = "arraybuffer";
+  ws.get(String(i)).onopen = handleOpen;
+  ws.get(String(i)).onmessage = handleMessage;
+  ws.get(String(i)).onerror = handleError;
+  ws.get(String(i)).onclose = handleClose;
 };
 
 connect();
+
 // for (let i = 0; i < 50; i++) {
-//   connect();
+//   connect(i);
 // }
+// setTimeout(() => {
+//   for (let i = 0; i < 50; i++) {
+//     handleLogin(i);
+//   }
+//   setTimeout(() => {
+//     setInterval(() => {
+//       Array.from(Object.values(usersMap)).forEach((player, i) => {
+//         ws.get(String(player.deviceID)).send(
+//           JSON.stringify(
+//             Object.assign(player, {
+//               deviceID: player.deviceID,
+//               pox: player.pox * Math.random() * 10,
+//               poy: player.poy * Math.random() * 10,
+//               poz: player.poz * Math.random() * 10,
+//               roy: player.roy * Math.random() * 10,
+//             })
+//           )
+//         );
+//       });
+//     }, 8);
+//   }, 1000);
+// }, 5000);
 
 function handleOpen(e) {
   console.log("서버에 연결되었습니다.");
-  renderLogin(ws);
+  renderLogin(ws.get(myId));
   // console.log(socket);
   // let loop = setInterval(() => {
   //   if (socket && socket.readyState === 1) {
@@ -85,6 +112,7 @@ function handleMessage(message) {
       } else {
         // 유저가 움직일 때 브로드캐스트로 받음
         // console.log("latency", new Date() - new Date(object.time), "ms"); // latency 테스트용
+        console.log(object.deviceID)
         if (!object) return;
         const user = usersMap.get(object.deviceID);
         if (user) {
@@ -138,12 +166,11 @@ function renderLogin(ws) {
   };
 }
 
-function handleLogin() {
-  const nickNames = nickName?.value || "test";
+function handleLogin(i) {
+  const nickNames = document.querySelector("#nickName")?.value || "test";
   const user = new User({
-    id: 1,
+    id: nickNames + (typeof i !== "number" ? "" : i),
     type: "player",
-    nickname: nickNames,
     device: "labtop",
     state: "online",
     pox: innerWidth / 2 - 35 / 2,
@@ -155,15 +182,21 @@ function handleLogin() {
 
   // 클라이언트에서 보낼 때 JSON.stringify로 - 2022-10-12 19:23:30
   // 로케이션 데이터만 protobuf - 2022-10-12 19:23:32
-  socket.send(Message.encode(declareProtobuf.setMessage(user)).finish());
+  ws.get(String(i)).send(
+    Message.encode(declareProtobuf.setMessage(user)).finish()
+  );
 
   clear();
 
   setTimeout(() => {
-    const found = users.find((user) => user.nickname === nickNames);
+    const found = users.find((user) => {
+      console.log(user);
+      return user.id === nickNames;
+    });
+    console.log(found);
     if (!found) {
       /* 사용량이 많을 때 로그인 안되는 이슈 발생 */
-      renderLogin(socket);
+      renderLogin(ws.get(String(i)));
     }
   }, 100);
 }
@@ -205,7 +238,7 @@ function animate() {
   ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
   users.forEach((user) => {
-    ctx.fillText(user.nickname, user.pox + 35 / 2, user.poy - 15);
+    ctx.fillText(user.id, user.pox + 35 / 2, user.poy - 15);
     ctx.textAlign = "center";
     ctx.fillRect(user.pox, user.poy, 35, 35);
   });
@@ -257,19 +290,17 @@ function autoUpdate() {
 window.automove = autoUpdate;
 
 function sendData() {
-  const player = usersMap.get(myId);
+  const player = usersMap.get(String(myId));
   if (player) {
     // console.log(player);
     socket.send(
-      JSON.stringify(
-        Object.assign(player, {
-          deviceID: player.deviceID,
-          pox: player.pox,
-          poy: player.poy,
-          poz: player.poz,
-          roy: player.roy,
-        })
-      )
+      JSON.stringify({
+        deviceID: player.deviceID,
+        pox: player.pox,
+        poy: player.poy,
+        poz: player.poz,
+        roy: player.roy,
+      })
     );
   }
 }

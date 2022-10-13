@@ -38,11 +38,11 @@ class Message {
  * Protobuf 규격 초기화
  */
 const declareProtobuf = new Message({
-  id: "fixed32",
+  id: "string",
   type: "string",
-  nickname: "string",
+  // nickname: "string",
   device: "string",
-  deviceID: "string",
+  deviceID: "fixed32",
   authority: "bool",
   avatar: "string",
   pox: "float",

@@ -81,6 +81,8 @@ function upgradeHandler(res, req, context) {
 }
 
 function openHandler(ws) {
+  deviceID++;
+
   if (isDisableKeepAlive) {
     ws.close();
   }
@@ -89,7 +91,7 @@ function openHandler(ws) {
   sp = params.sp;
 
   const user = new User({
-    id: 1,
+    id: null,
     type: "viewer",
     timestamp: new Date().getTime(),
     deviceID: deviceID,
@@ -98,7 +100,7 @@ function openHandler(ws) {
     // channel: ch,
     host: host,
   }).toJSON();
-  
+
   /**
    * 전체 서버 구독
    */
@@ -107,28 +109,38 @@ function openHandler(ws) {
   users.set(ws, user);
 
   targetServerName = `server${user.server}`;
+  console.log("open", users.get(ws));
   emitter.emit(`${targetServerName}::open`, app, ws, users.get(ws));
-  console.log(emitter);
-  console.log(targetServerName);
-  deviceID++;
 }
 
 function messageHandler(ws, message, isBinary) {
+  // console.log(message, isBinary)
   if (isBinary) {
     /**
      * Player 로그인 시 / protobuf 메세지
      */
-    const messageObject = JSON.parse(
-      JSON.stringify(Message.decode(new Uint8Array(message)))
-    );
+    let messageObject;
+    try {
+      messageObject = JSON.parse(
+        JSON.stringify(Message.decode(new Uint8Array(message)))
+      );
+    } catch (e) {}
     /** overriding user data */
+    console.log("login", messageObject);
+    console.log("client=>", users.get(ws));
     const overrideUserData = Object.assign(users.get(ws), messageObject);
+    console.log(overrideUserData);
     users.set(ws, overrideUserData);
 
-    emitter.emit(`${targetServerName}::login`, app, users.get(ws));
+    try {
+      emitter.emit(`${targetServerName}::login`, app, users.get(ws));
+    } catch (e) {}
   } else {
     const data = JSON.parse(decoder.decode(message));
-    emitter.emit(`${targetServerName}::location`, app, data, message);
+    console.log("location", data);
+    try {
+      emitter.emit(`${targetServerName}::location`, app, data, message);
+    } catch (e) {}
 
     /**
      * require chat message emit
@@ -147,9 +159,10 @@ function drainHandler(ws) {
 }
 
 function closeHandler(ws, code, message) {
-  console.log(`${sockets.get(ws)}번 종료`);
   console.log("WebSocket closed");
-  emitter.emit(`${targetServerName}::close`, app, users.get(ws));
+  try {
+    emitter.emit(`${targetServerName}::close`, app, users.get(ws));
+  } catch (e) {}
 }
 
 /**
