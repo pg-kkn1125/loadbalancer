@@ -36,7 +36,7 @@ const statusOptions = {
  */
 const chat = {
   name: "chat",
-  script: "./src/workers/chat.js",
+  script: "./src/workers/chat.mjs",
   watch: ["./src/workers"],
   instances: 1,
   ...envOptions,
@@ -47,40 +47,41 @@ const chat = {
 /**
  * 서버 세팅
  */
-const server = (number) => ({
-  name: `server${number + 3}`,
-  script: `./src/workers/server.js`,
+const SERVER_MAX_AMOUNT = 1;
+const server = {
+  name: `server`,
+  script: `./src/workers/server.mjs`,
   watch: ["./src/workers"],
   wait_ready: true,
-  instances: 1,
+  instances: SERVER_MAX_AMOUNT,
+  increment_var: "SERVER_PID",
   ...{
     ...Object.assign(envOptions, {
       env: {
         ...envOptions.env,
         SERVER_NAME: `server`,
-        SERVER_NUMBER: number + 3,
-        SERVER_COUNT: number,
+        SERVER_PID: 2,
       },
     }),
   },
   ...watchOptions,
   ...statusOptions,
-});
-const SERVER_MAX_AMOUNT = 10;
-const generateServer = (amount) =>
-  new Array(amount).fill(0).map((a, i) => server(i));
+};
 
-const startServers = (amount) =>
-  generateServer(amount).forEach((server) => {
-    pm2.start(server, controlFn(server.name));
-  });
+// const generateServer = (amount) =>
+//   new Array(amount).fill(0).map((a, i) => server(i));
+
+// const startServers = (amount) =>
+//   generateServer(amount).forEach((server) => {
+//     pm2.start(server, controlFn(server.name));
+//   });
 
 /**
  * 리시브 서버 세팅
  */
 const receive = {
   name: "app", // 앱 이름
-  script: "./app.js",
+  script: "./app.mjs",
   watch: ["./"],
   wait_ready: true,
   restart_delay: 1000,
@@ -113,13 +114,13 @@ pm2.connect(function (err) {
 
   setTimeout(() => {
     pm2.start(receive, controlFn("app"));
+    setTimeout(() => {
+      pm2.start(chat, controlFn("chat"));
+      setTimeout(() => {
+        pm2.start(server, controlFn("server"));
+      }, 100);
+    }, 10);
   }, 10);
-  setTimeout(() => {
-    pm2.start(chat, controlFn("chat"));
-  }, 10);
-  setTimeout(() => {
-    startServers(/* 1 */ SERVER_MAX_AMOUNT);
-  }, 3000);
 });
 
 function controlFn(name) {
@@ -147,4 +148,10 @@ function controlFn(name) {
 //   },
 // };
 
-export { SERVER_MAX_AMOUNT, server, generateServer, startServers, controlFn };
+export {
+  SERVER_MAX_AMOUNT,
+  server,
+  // generateServer,
+  // startServers,
+  // controlFn,
+};

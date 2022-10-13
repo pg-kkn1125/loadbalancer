@@ -1,4 +1,4 @@
-// import { Message, declareProtobuf } from "../protobuf.js";
+import { Message, declareProtobuf } from "../protobuf.mjs";
 
 class LocationQueue {
   constructor() {
@@ -31,8 +31,6 @@ class LocationQueue {
 
 class Queue {
   #channels = new Map();
-
-  constructor() {}
 
   #selectChannel(ch) {
     if (!this.#channels.has(String(ch))) {

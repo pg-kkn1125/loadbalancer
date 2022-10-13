@@ -1,8 +1,8 @@
 import uWs from "uWebSockets.js";
-import User from "./src/models/User.js";
-import { Message } from "./src/protobuf.js";
-import pm2 from "pm2";
-import { emitter } from "./src/emitter.js";
+import User from "./src/models/User.mjs";
+import { Message } from "./src/protobuf.mjs";
+import pm2 from "pm2.mjs";
+import { emitter } from "./src/emitter.mjs";
 
 /**
  * PORT               === 서버 포트
@@ -21,7 +21,7 @@ const sockets = new Map();
 const users = new Map();
 let isDisableKeepAlive = false;
 let deviceID = 0;
-let currentServer = 2;
+let currentServer = 1;
 let sp = "a"; // 공간은 URL 배정 받음
 let targetServerName = "";
 const decoder = new TextDecoder();
@@ -81,6 +81,8 @@ function upgradeHandler(res, req, context) {
 }
 
 function openHandler(ws) {
+  deviceID++;
+
   if (isDisableKeepAlive) {
     ws.close();
   }
@@ -89,7 +91,7 @@ function openHandler(ws) {
   sp = params.sp;
 
   const user = new User({
-    id: 1,
+    id: null,
     type: "viewer",
     timestamp: new Date().getTime(),
     deviceID: deviceID,
@@ -107,27 +109,38 @@ function openHandler(ws) {
   users.set(ws, user);
 
   targetServerName = `server${user.server}`;
+  console.log("open", users.get(ws));
   emitter.emit(`${targetServerName}::open`, app, ws, users.get(ws));
-
-  deviceID++;
 }
 
 function messageHandler(ws, message, isBinary) {
+  // console.log(message, isBinary)
   if (isBinary) {
     /**
      * Player 로그인 시 / protobuf 메세지
      */
-    const messageObject = JSON.parse(
-      JSON.stringify(Message.decode(new Uint8Array(message)))
-    );
+    let messageObject;
+    try {
+      messageObject = JSON.parse(
+        JSON.stringify(Message.decode(new Uint8Array(message)))
+      );
+    } catch (e) {}
     /** overriding user data */
+    console.log("login", messageObject);
+    console.log("client=>", users.get(ws));
     const overrideUserData = Object.assign(users.get(ws), messageObject);
+    console.log(overrideUserData);
     users.set(ws, overrideUserData);
 
-    emitter.emit(`${targetServerName}::login`, app, users.get(ws));
+    try {
+      emitter.emit(`${targetServerName}::login`, app, users.get(ws));
+    } catch (e) {}
   } else {
     const data = JSON.parse(decoder.decode(message));
-    emitter.emit(`${targetServerName}::location`, app, data, message);
+    console.log("location", data);
+    try {
+      emitter.emit(`${targetServerName}::location`, app, data, message);
+    } catch (e) {}
 
     /**
      * require chat message emit
@@ -146,9 +159,10 @@ function drainHandler(ws) {
 }
 
 function closeHandler(ws, code, message) {
-  console.log(`${sockets.get(ws)}번 종료`);
   console.log("WebSocket closed");
-  emitter.emit(`${targetServerName}::close`, app, users.get(ws));
+  try {
+    emitter.emit(`${targetServerName}::close`, app, users.get(ws));
+  } catch (e) {}
 }
 
 /**
@@ -178,4 +192,4 @@ process.on("SIGINT", function () {
 
 process.send("ready");
 
-export { app };
+export { app, emitter };

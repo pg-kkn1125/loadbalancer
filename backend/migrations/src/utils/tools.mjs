@@ -40,5 +40,4 @@ const checkLog =
       `공간 내 유저 인원: ${spaceUserCount} 명`.padStart(20, " ")
     );
   };
-
 export { checkLog };

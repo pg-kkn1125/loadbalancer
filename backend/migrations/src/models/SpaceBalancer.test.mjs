@@ -1,5 +1,5 @@
-import SpaceBalancer from "./SpaceBalancer.js";
-import User from "./User.js";
+import SpaceBalancer from "./SpaceBalancer.mjs";
+import User from "./User.mjs";
 
 describe("생성자 테스트", () => {
   test("스페이스 밸런서 테스트", () => {
@@ -109,7 +109,7 @@ describe("사용자 추가 시 채널 증설 테스트", () => {
     expect(sb.checkChannelUserAmount("a", 1)).toEqual(50);
   });
   test("채널 인원 확인 - 2", () => {
-    console.log(sb.selectChannel("a", 2).get("50").channel);
+    console.log(sb.selectChannel("a", 2).get('50').channel)
     expect(sb.checkChannelUserAmount("a", 2)).toEqual(1);
   });
   test("채널 인원 확인 - 3", () => {

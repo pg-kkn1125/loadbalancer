@@ -1,4 +1,4 @@
-import Queue from "../models/Queue.js";
+const Queue = require("../models/Queue.mjs");
 
 const chatQueue = new Queue();
 

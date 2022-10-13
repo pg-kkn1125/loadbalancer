@@ -60,7 +60,7 @@ class SpaceBalancer {
   /**
    * 공간 선택
    * @param {string} sp - 공간
-   * @returns
+   * @returns {object|undefined} - 공간 반환
    */
   selectSpace(sp) {
     return this.spaces.get(sp.toLowerCase());
@@ -70,7 +70,7 @@ class SpaceBalancer {
    * 특정 공간의 채널 선택
    * @param {string} sp - 공간
    * @param {number} ch - 채널
-   * @returns
+   * @returns {object|undefined} - 채널 반환
    */
   selectChannel(sp, ch) {
     return this.selectSpace(sp).get(String(ch));
@@ -81,7 +81,7 @@ class SpaceBalancer {
    * @param {string} sp - 공간
    * @param {number} ch - 채널
    * @param {number} deviceID - 사용자 디바이스 아이디
-   * @returns
+   * @returns {User|undefined} - 특정 공간 -> 채널의 유저 반환
    */
   selectUser(sp, ch, deviceID) {
     return this.selectChannel(sp, ch).get(String(deviceID));
@@ -159,7 +159,9 @@ class SpaceBalancer {
    * @param {User} user - 사용자 객체
    */
   deleteUser(user) {
-    const { space, channel, deviceID } = user;
+    const space = user.space,
+      channel = user.channel,
+      deviceID = user.deviceID;
     if (this.hasUser(space, channel, deviceID)) {
       this.selectChannel(space, channel).delete(String(deviceID));
     }
@@ -212,7 +214,7 @@ class SpaceBalancer {
   /**
    * 공간 내 사용자 인원 수 조회
    * @param {string} sp
-   * @returns
+   * @returns {number} - 공간 내 사용자 인원 수 반환
    */
   checkSpaceUserAmount(sp) {
     return Array.from(this.selectSpace(sp).values()).reduce(
@@ -238,8 +240,8 @@ class SpaceBalancer {
   }
 
   /**
-   *
-   * @param {User} user
+   * 유저 deviceID로 조회해서 기존 유저 정보 덮어쓰기
+   * @param {User} user 유저 데이터
    */
   overrideUser(user) {
     this.selectChannel(user.space, user.channel).set(
@@ -263,6 +265,7 @@ class SpaceBalancer {
       this.addChannel(user.space, user.channel);
     }
 
+    // 유저가 존재하면 덮어쓰기
     if (this.hasUser(user.space, user.channel)) {
       this.overrideUser(user);
       return;
