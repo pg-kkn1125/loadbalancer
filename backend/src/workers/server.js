@@ -6,6 +6,7 @@ const Queue = require("../models/Queue");
 const SpaceBalancer = require("../models/SpaceBalancer");
 const pm2 = require("pm2");
 const { emitter } = require("../emitter");
+const { Message } = require("../protobuf");
 let increaseServer = false;
 let overflowCount = 3;
 
@@ -48,6 +49,15 @@ emitter.on(`${serverName}::open`, (app, ws, viewer) => {
   checkLog(renewViewer.space, renewViewer.channel);
 });
 
+// NOTICE: viewer data 보류
+emitter.on(`${serverName}::viewer`, (app, viewer) => {
+  console.log("viewer");
+  const renewViewer = spaces.overrideUser(viewer);
+  users.set(String(renewViewer.deviceID), renewViewer);
+
+  checkLog(renewViewer.space, renewViewer.channel);
+});
+
 emitter.on(`${serverName}::login`, (app, player) => {
   console.log("login");
   const renewPlayer = spaces.addUserInEmptyChannel(player);
@@ -59,22 +69,37 @@ emitter.on(`${serverName}::login`, (app, player) => {
     new TextEncoder().encode(JSON.stringify(renewPlayer))
   );
 
-  locationMap[renewPlayer.space.toLowerCase()].enter(
-    renewPlayer.channel,
-    renewPlayer
+  // DEL: 클라이언트 연동으로 보류
+  // locationMap[renewPlayer.space.toLowerCase()].enter(
+  //   renewPlayer.channel,
+  //   renewPlayer
+  // );
+  app.publish(
+    `${serverName}/space${renewPlayer.space.toLowerCase()}/channel${
+      renewPlayer.channel
+    }`,
+    JSON.stringify(renewPlayer)
   );
 
   checkLog(renewPlayer.space, renewPlayer.channel);
 });
 
-emitter.on(`${serverName}::location`, (app, location) => {
+emitter.on(`${serverName}::location`, (app, location, message) => {
   console.log(`============================`);
   console.log(location);
-  console.log(location.deviceID);
+  console.log(location.id);
+  const { id, pox, poy, poz, roy } = location;
+  const locationConverter = {
+    deviceID: id,
+    pox,
+    poy,
+    poz,
+    roy,
+  };
   // console.log(users);
-  const player = users.get(String(location.deviceID));
-  const replacePlayer = Object.assign(player, location);
-  users.set(String(location.deviceID), replacePlayer);
+  const player = users.get(String(locationConverter.deviceID));
+  const replacePlayer = Object.assign(player, locationConverter);
+  users.set(String(locationConverter.deviceID), replacePlayer);
 
   spaces.overrideUser(replacePlayer);
 
@@ -83,18 +108,11 @@ emitter.on(`${serverName}::location`, (app, location) => {
     replacePlayer.channel,
     replacePlayer.deviceID
   );
-
+  console.log("message", message);
   locationMap[replaceUser.space.toLowerCase()].enter(
     replaceUser.channel,
-    JSON.stringify({
-      deviceID: replaceUser.deviceID,
-      pox: replaceUser.pox,
-      poy: replaceUser.poy,
-      poz: replaceUser.poz,
-      roy: replaceUser.roy,
-    })
+    message
   );
-  console.log(replacePlayer.deviceID);
   // checkLog(replaceUser.space, replaceUser.channel);
 });
 

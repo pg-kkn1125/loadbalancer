@@ -1,4 +1,4 @@
-const { Message, declareProtobuf } = require("../protobuf");
+const { Message } = require("../protobuf");
 
 class LocationQueue {
   constructor() {
