@@ -1,4 +1,4 @@
-import pm2 from "pm2";
+const pm2 = require("pm2");
 
 /**
  * 공통 속성
@@ -36,7 +36,7 @@ const statusOptions = {
  */
 const chat = {
   name: "chat",
-  script: "./src/workers/chat.mjs",
+  script: "./src/workers/chat.js",
   watch: ["./src/workers"],
   instances: 1,
   ...envOptions,
@@ -50,7 +50,7 @@ const chat = {
 const SERVER_MAX_AMOUNT = 1;
 const server = {
   name: `server`,
-  script: `./src/workers/server.mjs`,
+  script: `./src/workers/server.js`,
   watch: ["./src/workers"],
   wait_ready: true,
   instances: SERVER_MAX_AMOUNT,
@@ -81,8 +81,8 @@ const server = {
  */
 const receive = {
   name: "app", // 앱 이름
-  script: "./app.mjs",
-  watch: ["./"],
+  script: "./app.js",
+  watch: true,
   wait_ready: true,
   restart_delay: 1000,
   instances: 1,
@@ -141,17 +141,8 @@ function controlFn(name) {
 }
 
 // module.exports = {
-//   apps: [receive, chat, ...servers],
-
+//   apps: [receive, chat, server],
 //   deploy: {
 //     production: production,
 //   },
 // };
-
-export {
-  SERVER_MAX_AMOUNT,
-  server,
-  // generateServer,
-  // startServers,
-  // controlFn,
-};

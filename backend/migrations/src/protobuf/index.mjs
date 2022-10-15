@@ -6,8 +6,8 @@ const protobuf = require("protobufjs");
 class Message {
   #message = null;
 
-  constructor(properties) {
-    this.initializeFields(properties);
+  constructor() {
+    this.initializeFields();
   }
 
   static encode(result) {
@@ -19,39 +19,30 @@ class Message {
     return protobuf.Message.decode(data);
   }
 
-  initializeFields(fieldsProperties) {
-    const entries = Object.entries(fieldsProperties);
-    for (let idx in entries) {
-      const [key, type] = entries[idx];
-      const declare = protobuf.Field.d(Number(idx), type, "optional");
-      declare(protobuf.Message.prototype, key);
-    }
+  initializeFields() {
+    /**
+     * Protobuf 규격 초기화
+     */
+    protobuf.Field.d(
+      1,
+      "fixed32",
+      "required"
+    )(protobuf.Message.prototype, "id");
+    protobuf.Field.d(2, "float", "required")(protobuf.Message.prototype, "pox");
+    protobuf.Field.d(3, "float", "required")(protobuf.Message.prototype, "poy");
+    protobuf.Field.d(4, "float", "required")(protobuf.Message.prototype, "poz");
+    protobuf.Field.d(
+      5,
+      "sfixed32",
+      "required"
+    )(protobuf.Message.prototype, "roy");
   }
 
   setMessage(properties) {
-    this.#message = new protobuf.Message(properties);
-    return this.#message;
+    return new protobuf.Message(properties);
   }
 }
 
-/**
- * Protobuf 규격 초기화
- */
-const declareProtobuf = new Message({
-  id: "string",
-  type: "string",
-  // nickname: "string",
-  device: "string",
-  deviceID: "fixed32",
-  authority: "bool",
-  avatar: "string",
-  pox: "float",
-  poy: "float",
-  poz: "float",
-  roy: "float",
-  state: "string",
-  host: "string",
-  timestamp: "fixed64",
-});
+new Message();
 
-module.exports = { declareProtobuf, Message };
+module.exports = { Message };

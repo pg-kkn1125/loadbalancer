@@ -314,4 +314,4 @@ class SpaceBalancer {
   }
 }
 
-export default SpaceBalancer;
+module.exports = SpaceBalancer;

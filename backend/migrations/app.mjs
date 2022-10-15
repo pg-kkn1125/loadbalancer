@@ -1,8 +1,8 @@
-import uWs from "uWebSockets.js";
-import User from "./src/models/User.mjs";
-import { Message } from "./src/protobuf.mjs";
-import pm2 from "pm2.mjs";
-import { emitter } from "./src/emitter.mjs";
+const uWs = require("uWebSockets.js");
+const User = require("./src/models/User");
+const { Message } = require("./src/protobuf");
+const pm2 = require("pm2");
+const { emitter } = require("./src/emitter");
 
 /**
  * PORT               === 서버 포트
@@ -60,15 +60,18 @@ function upgradeHandler(res, req, context) {
       .filter((q) => q)
       .map((q) => q.split("="))
   );
+
   const href = req.getHeader("origin") + req.getUrl() + "?" + req.getQuery();
   const host =
     req.getHeader("origin").match(/http(s)?:\/\/([\w\W]+)/)?.[2] || "test";
+
+  const space = params.sp || "A";
   res.upgrade(
     {
       url: req.getUrl(),
       params: params,
       /* 파라미터 추가되는 값 아래에 필드 추가 */
-      space: params.sp.toLowerCase() || "a",
+      space: space.toLowerCase() || "a",
       href: href,
       host: host,
     },
@@ -116,31 +119,54 @@ function openHandler(ws) {
 function messageHandler(ws, message, isBinary) {
   // console.log(message, isBinary)
   if (isBinary) {
-    /**
+    /** // NOTICE: 로케이션으로 변경
      * Player 로그인 시 / protobuf 메세지
      */
-    let messageObject;
-    try {
-      messageObject = JSON.parse(
-        JSON.stringify(Message.decode(new Uint8Array(message)))
-      );
-    } catch (e) {}
+    let messageObject = JSON.parse(
+      JSON.stringify(Message.decode(new Uint8Array(message)))
+    );
+    emitter.emit(`${targetServerName}::location`, app, messageObject, message);
     /** overriding user data */
-    console.log("login", messageObject);
-    console.log("client=>", users.get(ws));
-    const overrideUserData = Object.assign(users.get(ws), messageObject);
-    console.log(overrideUserData);
-    users.set(ws, overrideUserData);
+    // DEL: 클라이언트에 맞춰야하므로 코드 보류
+    // console.log("login", messageObject);
+    // console.log("client=>", users.get(ws));
+    // const overrideUserData = Object.assign(users.get(ws), messageObject);
+    // console.log(overrideUserData);
+    // users.set(ws, overrideUserData);
 
-    try {
-      emitter.emit(`${targetServerName}::login`, app, users.get(ws));
-    } catch (e) {}
+    // DEL: 클라이언트에 맞춰야하므로 코드 보류
+    // try {
+    //   emitter.emit(`${targetServerName}::location`, app, users.get(ws));
+    // } catch (e) {}
   } else {
+    // 로그인 데이터 받음
     const data = JSON.parse(decoder.decode(message));
-    console.log("location", data);
-    try {
-      emitter.emit(`${targetServerName}::location`, app, data, message);
-    } catch (e) {}
+    // NEW: 클라이언트 데이터 규격 맞춤
+    if (data.type === "player") {
+      const overrideUserData = Object.assign(users.get(ws), data);
+      users.set(ws, overrideUserData);
+
+      try {
+        emitter.emit(`${targetServerName}::login`, app, users.get(ws));
+      } catch (e) {}
+    } else {
+      const overrideUserData = Object.assign(users.get(ws), data);
+      users.set(ws, overrideUserData);
+      try {
+        emitter.emit(`${targetServerName}::viewer`, app, users.get(ws));
+      } catch (e) {}
+    }
+    // if (data.hasOwnProperty("type")) {
+    //   // viewer data
+    //   // const overrideUserData = Object.assign(users.get(ws), data);
+    //   // users.set(ws, overrideUserData);
+    //   // emitter.emit(`${targetServerName}::viewer`, app, users.get(ws));
+    // } else {
+    //   console.log("location", data);
+    //   try {
+    //     emitter.emit(`${targetServerName}::location`, app, data, message);
+    //   } catch (e) {}
+    // }
 
     /**
      * require chat message emit
@@ -192,4 +218,4 @@ process.on("SIGINT", function () {
 
 process.send("ready");
 
-export { app, emitter };
+module.exports = { app, emitter };

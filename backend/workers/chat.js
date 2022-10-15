@@ -1,4 +1,4 @@
-const Queue = require("../models/Queue");
+const Queue = require("../src/models/Queue");
 
 const chatQueue = new Queue();
 

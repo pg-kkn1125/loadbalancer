@@ -1,12 +1,12 @@
 /**
  * app을 가져와야 emitter가 연동 됨
  */
-const { app } = require("../../app");
-const Queue = require("../models/Queue");
-const SpaceBalancer = require("../models/SpaceBalancer");
+const { app } = require("../app");
+const Queue = require("../src/models/Queue");
+const SpaceBalancer = require("../src/models/SpaceBalancer");
 const pm2 = require("pm2");
-const { emitter } = require("../emitter");
-const { Message } = require("../protobuf");
+const { emitter } = require("../src/emitter/index");
+const { Message } = require("../src/protobuf/index");
 let increaseServer = false;
 let overflowCount = 3;
 
@@ -98,6 +98,7 @@ emitter.on(`${serverName}::location`, (app, location, message) => {
   };
   // console.log(users);
   const player = users.get(String(locationConverter.deviceID));
+  console.log(player);
   const replacePlayer = Object.assign(player, locationConverter);
   users.set(String(locationConverter.deviceID), replacePlayer);
 

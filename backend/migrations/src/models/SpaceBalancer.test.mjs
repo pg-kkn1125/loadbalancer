@@ -1,5 +1,5 @@
-import SpaceBalancer from "./SpaceBalancer.mjs";
-import User from "./User.mjs";
+const SpaceBalancer = require("./SpaceBalancer");
+const User = require("./User");
 
 describe("생성자 테스트", () => {
   test("스페이스 밸런서 테스트", () => {

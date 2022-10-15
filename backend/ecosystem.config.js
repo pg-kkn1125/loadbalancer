@@ -36,8 +36,8 @@ const statusOptions = {
  */
 const chat = {
   name: "chat",
-  script: "./src/workers/chat.js",
-  watch: ["./src/workers"],
+  script: "./workers/chat.js",
+  watch: ["./workers"],
   instances: 1,
   ...envOptions,
   ...watchOptions,
@@ -50,8 +50,8 @@ const chat = {
 const SERVER_MAX_AMOUNT = 1;
 const server = {
   name: `server`,
-  script: `./src/workers/server.js`,
-  watch: ["./src/workers"],
+  script: `./workers/server.js`,
+  watch: ["./workers"],
   wait_ready: true,
   instances: SERVER_MAX_AMOUNT,
   increment_var: "SERVER_PID",
@@ -82,7 +82,7 @@ const server = {
 const receive = {
   name: "app", // 앱 이름
   script: "./app.js",
-  watch: ["./"],
+  watch: true,
   wait_ready: true,
   restart_delay: 1000,
   instances: 1,
@@ -141,17 +141,8 @@ function controlFn(name) {
 }
 
 // module.exports = {
-//   apps: [receive, chat, ...servers],
-
+//   apps: [receive, chat, server],
 //   deploy: {
 //     production: production,
 //   },
 // };
-
-module.exports = {
-  SERVER_MAX_AMOUNT,
-  server,
-  // generateServer,
-  // startServers,
-  // controlFn,
-};

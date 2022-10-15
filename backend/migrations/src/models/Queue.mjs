@@ -1,4 +1,4 @@
-import { Message, declareProtobuf } from "../protobuf.mjs";
+const { Message } = require("../protobuf");
 
 class LocationQueue {
   constructor() {
@@ -54,4 +54,4 @@ class Queue {
   }
 }
 
-export default Queue;
+module.exports = Queue;

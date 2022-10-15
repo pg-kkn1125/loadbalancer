@@ -1,5 +1,7 @@
-const Queue = require("../models/Queue.mjs");
+const Queue = require("../models/Queue");
 
 const chatQueue = new Queue();
+
+
 
 process.send("ready");
