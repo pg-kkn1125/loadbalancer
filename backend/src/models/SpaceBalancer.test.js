@@ -1,5 +1,5 @@
-const SpaceBalancer = require("./SpaceBalancer");
-const User = require("./User");
+import SpaceBalancer from "./SpaceBalancer";
+import User from "./User"
 
 describe("생성자 테스트", () => {
   test("스페이스 밸런서 테스트", () => {

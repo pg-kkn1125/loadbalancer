@@ -1,4 +1,4 @@
-const { Message } = require("../protobuf");
+import { Message } from "../protobuf";
 
 class LocationQueue {
   constructor() {
@@ -54,4 +54,4 @@ class Queue {
   }
 }
 
-module.exports = Queue;
+export default Queue;

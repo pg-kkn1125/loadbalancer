@@ -7,7 +7,7 @@ const envOptions = {
   env: {
     // 실행 시 환경 변수 설정
     HOST: "localhost",
-    PORT: process.env.NODE_ENV === "development" ? 4000 : 3000,
+    PORT: 4000,
   },
   env_production: {
     // 개발 환경별 환경 변수 설정
@@ -38,6 +38,7 @@ const chat = {
   name: "chat",
   script: "./workers/chat.js",
   watch: ["./workers"],
+  node_args: '-r esm',
   instances: 1,
   ...envOptions,
   ...watchOptions,
@@ -52,6 +53,7 @@ const server = {
   name: `server`,
   script: `./workers/server.js`,
   watch: ["./workers"],
+  node_args: '-r esm',
   wait_ready: true,
   instances: SERVER_MAX_AMOUNT,
   increment_var: "SERVER_PID",
@@ -83,6 +85,7 @@ const receive = {
   name: "app", // 앱 이름
   script: "./app.js",
   watch: true,
+  node_args: '-r esm',
   wait_ready: true,
   restart_delay: 1000,
   instances: 1,
@@ -106,43 +109,43 @@ const production = {
   "pre-setup": "",
 };
 
-pm2.connect(function (err) {
-  if (err) {
-    console.log(err);
-    process.exit(2);
-  }
+// pm2.connect(function (err) {
+//   if (err) {
+//     console.log(err);
+//     process.exit(2);
+//   }
 
-  setTimeout(() => {
-    pm2.start(receive, controlFn("app"));
-    setTimeout(() => {
-      pm2.start(chat, controlFn("chat"));
-      setTimeout(() => {
-        pm2.start(server, controlFn("server"));
-      }, 100);
-    }, 10);
-  }, 10);
-});
+//   setTimeout(() => {
+//     pm2.start(receive, controlFn("app"));
+//     setTimeout(() => {
+//       pm2.start(chat, controlFn("chat"));
+//       setTimeout(() => {
+//         pm2.start(server, controlFn("server"));
+//       }, 100);
+//     }, 10);
+//   }, 10);
+// });
 
-function controlFn(name) {
-  return function (err, apps) {
-    if (err) {
-      console.log(err);
-      return pm2.disconnect();
-    }
+// function controlFn(name) {
+//   return function (err, apps) {
+//     if (err) {
+//       console.log(err);
+//       return pm2.disconnect();
+//     }
 
-    pm2.list((err, list) => {
-      // console.log(err, list);
+//     pm2.list((err, list) => {
+//       // console.log(err, list);
 
-      pm2.restart(name, (err, proc) => {
-        pm2.disconnect();
-      });
-    });
-  };
-}
+//       pm2.restart(name, (err, proc) => {
+//         pm2.disconnect();
+//       });
+//     });
+//   };
+// }
 
-// module.exports = {
-//   apps: [receive, chat, server],
-//   deploy: {
-//     production: production,
-//   },
-// };
+module.exports = {
+  apps: [receive, chat, server],
+  deploy: {
+    production: production,
+  },
+};

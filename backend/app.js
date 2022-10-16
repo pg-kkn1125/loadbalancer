@@ -1,8 +1,8 @@
-const uWs = require("uWebSockets.js");
-const User = require("./src/models/User");
-const { Message } = require("./src/protobuf");
-const pm2 = require("pm2");
-const { emitter } = require("./src/emitter");
+import uWs from "uWebSockets.js";
+import User from "./src/models/User.js";
+import { Message } from "./src/protobuf/index.js";
+import pm2 from "pm2";
+import { emitter } from "./src/emitter/index.js";
 
 /**
  * PORT               === 서버 포트
@@ -16,7 +16,7 @@ const { emitter } = require("./src/emitter");
  * targetServerName   === 타겟 서버 명
  * decoder            === message가 바이너리가 아닐 때
  */
-const PORT = process.env.NODE_ENV?.trim() === "development" ? 4000 : 3000;
+const PORT = process.env.NODE_ENV === "development" ? 4000 : 3000;
 const sockets = new Map();
 const users = new Map();
 let isDisableKeepAlive = false;
@@ -60,10 +60,9 @@ function upgradeHandler(res, req, context) {
       .filter((q) => q)
       .map((q) => q.split("="))
   );
-
+  const hostArray = req.getHeader("origin").match(/http(s)?:\/\/([\w\W]+)/);
   const href = req.getHeader("origin") + req.getUrl() + "?" + req.getQuery();
-  const host =
-    req.getHeader("origin").match(/http(s)?:\/\/([\w\W]+)/)?.[2] || "test";
+  const host = hostArray ? hostArray[2] : "test";
 
   const space = params.sp || "A";
   res.upgrade(
@@ -100,7 +99,7 @@ function openHandler(ws) {
     deviceID: deviceID,
     server: currentServer,
     space: sp,
-    // channel: ch,
+    channel: 1,
     host: host,
   }).toJSON();
 
@@ -110,10 +109,33 @@ function openHandler(ws) {
   ws.subscribe("server");
   sockets.set(ws, deviceID);
   users.set(ws, user);
-
   targetServerName = `server${user.server}`;
-  console.log("open", users.get(ws));
-  emitter.emit(`${targetServerName}::open`, app, ws, users.get(ws));
+
+  ws.subscribe(String(user.deviceID));
+  ws.subscribe(
+    `${targetServerName}/space${user.space.toLowerCase()}/channel${
+      user.channel
+    }`
+  );
+
+  pm2.sendDataToProcessId(
+    2,
+    {
+      type: "process:msg",
+      topic: true,
+      data: {
+        target: `open`,
+        user: users.get(ws),
+        callbacks: function(publishCallback) {
+          publishCallback(app);
+        },
+      },
+    },
+    function (err) {
+      // console.log(err);
+      console.log(arguments);
+    }
+  );
 }
 
 function messageHandler(ws, message, isBinary) {
@@ -125,7 +147,23 @@ function messageHandler(ws, message, isBinary) {
     let messageObject = JSON.parse(
       JSON.stringify(Message.decode(new Uint8Array(message)))
     );
-    emitter.emit(`${targetServerName}::location`, app, messageObject, message);
+    pm2.sendDataToProcessId(
+      2,
+      {
+        type: "process:msg",
+        topic: true,
+        data: {
+          target: `location`,
+          user: users.get(ws),
+          messageObject,
+          message,
+        },
+      },
+      (err) => {
+        // console.log(err);
+      }
+    );
+    // emitter.emit(`${targetServerName}::location`, app, messageObject, message);
     /** overriding user data */
     // DEL: 클라이언트에 맞춰야하므로 코드 보류
     // console.log("login", messageObject);
@@ -147,7 +185,21 @@ function messageHandler(ws, message, isBinary) {
       users.set(ws, overrideUserData);
 
       try {
-        emitter.emit(`${targetServerName}::login`, app, users.get(ws));
+        pm2.sendDataToProcessId(
+          2,
+          {
+            type: "process:msg",
+            topic: true,
+            data: {
+              target: `login`,
+              user: users.get(ws),
+            },
+          },
+          (err) => {
+            // console.log(err);
+          }
+        );
+        // emitter.emit(`${targetServerName}::login`, app, users.get(ws));
       } catch (e) {}
     } else {
       const overrideUserData = Object.assign(users.get(ws), data);
@@ -218,4 +270,4 @@ process.on("SIGINT", function () {
 
 process.send("ready");
 
-module.exports = { app, emitter };
+export { app, emitter };

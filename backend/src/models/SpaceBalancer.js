@@ -314,4 +314,8 @@ class SpaceBalancer {
   }
 }
 
-module.exports = SpaceBalancer;
+const limit50Balancer = new SpaceBalancer(50);
+
+export default SpaceBalancer;
+
+export { limit50Balancer };

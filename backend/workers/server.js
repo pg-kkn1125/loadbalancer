@@ -1,12 +1,12 @@
 /**
  * app을 가져와야 emitter가 연동 됨
  */
-const { app } = require("../app");
-const Queue = require("../src/models/Queue");
-const SpaceBalancer = require("../src/models/SpaceBalancer");
-const pm2 = require("pm2");
-const { emitter } = require("../src/emitter/index");
-const { Message } = require("../src/protobuf/index");
+import { app } from "../app.js";
+import Queue from "../src/models/Queue.js";
+import SpaceBalancer from "../src/models/SpaceBalancer.js";
+import pm2 from "pm2";
+import { emitter } from "../src/emitter/index.js";
+import { Message } from "../src/protobuf/index.js";
 let increaseServer = false;
 let overflowCount = 3;
 
@@ -26,28 +26,105 @@ const spaces = new SpaceBalancer(50);
 
 let ch = 1;
 
-emitter.on(`${serverName}::open`, (app, ws, viewer) => {
-  Object.assign(viewer, {
-    channel: ch,
-  });
-  const renewViewer = spaces.addUserInEmptyChannel(viewer);
-  users.set(String(renewViewer.deviceID), renewViewer);
-  ws.subscribe(String(renewViewer.deviceID));
-  ws.subscribe(
-    `${serverName}/space${renewViewer.space.toLowerCase()}/channel${
-      renewViewer.channel
-    }`
-  );
+process.on("message", ({ data }) => {
+  const { target, user, messageObject, message, callbacks } = data;
+  console.log(data)
+  if (target === "open") {
+    Object.assign(user, {
+      channel: ch,
+    });
+    const renewViewer = spaces.addUserInEmptyChannel(user);
+    users.set(String(renewViewer.deviceID), renewViewer);
+    /* 로그인 시 플레이어 전달 */
+    callbacks((app) => {
+      app.publish(
+        String(renewViewer.deviceID),
+        JSON.stringify(
+          spaces.getPlayers(renewViewer.space, renewViewer.channel)
+        )
+      );
+    });
+    checkLog(renewViewer.space, renewViewer.channel);
+  } else if (target === "login") {
+    console.log(serverName);
+    console.log("login");
+    const renewPlayer = spaces.addUserInEmptyChannel(user);
+    users.set(String(renewPlayer.deviceID), renewPlayer);
+    console.log(renewPlayer);
+    app.publish(
+      String(renewPlayer.deviceID),
+      new TextEncoder().encode(JSON.stringify(renewPlayer))
+    );
 
-  /* 로그인 시 플레이어 전달 */
-  tryPublish(
-    app,
-    String(renewViewer.deviceID),
-    JSON.stringify(spaces.getPlayers(renewViewer.space, renewViewer.channel))
-  );
+    // DEL: 클라이언트 연동으로 보류
+    // locationMap[renewPlayer.space.toLowerCase()].enter(
+    //   renewPlayer.channel,
+    //   renewPlayer
+    // );
+    app.publish(
+      `${serverName}/space${renewPlayer.space.toLowerCase()}/channel${
+        renewPlayer.channel
+      }`,
+      JSON.stringify(renewPlayer)
+    );
+    checkLog(renewPlayer.space, renewPlayer.channel);
+  } else if (target === "location") {
+    console.log(`============================`);
+    const location = messageObject;
+    console.log(location);
+    console.log(location.id);
+    const { id, pox, poy, poz, roy } = location;
+    const locationConverter = {
+      deviceID: id,
+      pox,
+      poy,
+      poz,
+      roy,
+    };
+    // console.log(users);
+    const player = users.get(String(locationConverter.deviceID));
+    console.log(player);
+    const replacePlayer = Object.assign(player, locationConverter);
+    users.set(String(locationConverter.deviceID), replacePlayer);
 
-  checkLog(renewViewer.space, renewViewer.channel);
+    spaces.overrideUser(replacePlayer);
+
+    const replaceUser = spaces.selectUser(
+      replacePlayer.space,
+      replacePlayer.channel,
+      replacePlayer.deviceID
+    );
+    console.log("message", message);
+    locationMap[replaceUser.space.toLowerCase()].enter(
+      replaceUser.channel,
+      message
+    );
+  }
 });
+
+// emitter.on(`${serverName}::open`, (app, ws, viewer) => {
+//   console.log(app)
+//   Object.assign(viewer, {
+//     channel: ch,
+//   });
+//   const renewViewer = spaces.addUserInEmptyChannel(viewer);
+//   users.set(String(renewViewer.deviceID), renewViewer);
+//   ws.subscribe(String(renewViewer.deviceID));
+//   ws.subscribe(
+//     `${serverName}/space${renewViewer.space.toLowerCase()}/channel${
+//       renewViewer.channel
+//     }`
+//   );
+
+//   /* 로그인 시 플레이어 전달 */
+//   tryPublish(
+//     app,
+//     String(renewViewer.deviceID),
+//     JSON.stringify(spaces.getPlayers(renewViewer.space, renewViewer.channel))
+//   );
+
+//   checkLog(renewViewer.space, renewViewer.channel);
+// });
 
 // NOTICE: viewer data 보류
 emitter.on(`${serverName}::viewer`, (app, viewer) => {
@@ -58,31 +135,31 @@ emitter.on(`${serverName}::viewer`, (app, viewer) => {
   checkLog(renewViewer.space, renewViewer.channel);
 });
 
-emitter.on(`${serverName}::login`, (app, player) => {
-  console.log("login");
-  const renewPlayer = spaces.addUserInEmptyChannel(player);
-  users.set(String(renewPlayer.deviceID), renewPlayer);
-  console.log(renewPlayer);
-  tryPublish(
-    app,
-    String(renewPlayer.deviceID),
-    new TextEncoder().encode(JSON.stringify(renewPlayer))
-  );
+// emitter.on(`${serverName}::login`, (app, player) => {
+//   console.log("login");
+//   const renewPlayer = spaces.addUserInEmptyChannel(player);
+//   users.set(String(renewPlayer.deviceID), renewPlayer);
+//   console.log(renewPlayer);
+//   tryPublish(
+//     app,
+//     String(renewPlayer.deviceID),
+//     new TextEncoder().encode(JSON.stringify(renewPlayer))
+//   );
 
-  // DEL: 클라이언트 연동으로 보류
-  // locationMap[renewPlayer.space.toLowerCase()].enter(
-  //   renewPlayer.channel,
-  //   renewPlayer
-  // );
-  app.publish(
-    `${serverName}/space${renewPlayer.space.toLowerCase()}/channel${
-      renewPlayer.channel
-    }`,
-    JSON.stringify(renewPlayer)
-  );
+//   // DEL: 클라이언트 연동으로 보류
+//   // locationMap[renewPlayer.space.toLowerCase()].enter(
+//   //   renewPlayer.channel,
+//   //   renewPlayer
+//   // );
+//   app.publish(
+//     `${serverName}/space${renewPlayer.space.toLowerCase()}/channel${
+//       renewPlayer.channel
+//     }`,
+//     JSON.stringify(renewPlayer)
+//   );
 
-  checkLog(renewPlayer.space, renewPlayer.channel);
-});
+//   checkLog(renewPlayer.space, renewPlayer.channel);
+// });
 
 emitter.on(`${serverName}::location`, (app, location, message) => {
   console.log(`============================`);
@@ -331,7 +408,7 @@ function checkLog(sp, ch, disable = false) {
   );
 }
 
-function tryPublish(app, target, data, isLocation = false) {
+function tryPublish(target, data, isLocation = false) {
   try {
     if (isLocation) {
       app.publish(target, data, true, true);
@@ -347,4 +424,4 @@ process.on("process:msg", (packet) => {
   console.log(packet);
 });
 
-module.exports = { users, spaces };
+export { users, spaces };

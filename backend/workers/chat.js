@@ -1,7 +1,5 @@
-const Queue = require("../src/models/Queue");
+import Queue from "../src/models/Queue.js";
 
 const chatQueue = new Queue();
-
-
 
 process.send("ready");

@@ -82,6 +82,7 @@ function handleOpen(e) {
 }
 
 function handleMessage(message) {
+  console.log(message);
   if (message.data instanceof Blob) {
     /*  */
   } else if (message.data instanceof ArrayBuffer) {
@@ -112,7 +113,7 @@ function handleMessage(message) {
       } else {
         // 유저가 움직일 때 브로드캐스트로 받음
         // console.log("latency", new Date() - new Date(object.time), "ms"); // latency 테스트용
-        console.log(object.deviceID)
+        console.log(object.deviceID);
         if (!object) return;
         const user = usersMap.get(object.deviceID);
         if (user) {
@@ -182,15 +183,13 @@ function handleLogin(i) {
 
   // 클라이언트에서 보낼 때 JSON.stringify로 - 2022-10-12 19:23:30
   // 로케이션 데이터만 protobuf - 2022-10-12 19:23:32
-  ws.get(String(i)).send(
-    Message.encode(declareProtobuf.setMessage(user)).finish()
-  );
+  ws.get(String(i)).send(JSON.stringify(user));
 
   clear();
 
   setTimeout(() => {
+    console.log(users)
     const found = users.find((user) => {
-      console.log(user);
       return user.id === nickNames;
     });
     console.log(found);

@@ -9,12 +9,12 @@
   "scripts": {
     "localhost": "set HOST=localhost",
     "port3000": "set PORT=3000",
-    "start": "pm2 save && set NODE_ENV=development && node ecosystem.config.js",
-    "restart": "pm2 restart all",
-    "reload": "pm2 reload all",
+    "start": "pm2 save && pm2 start --env development ecosystem.config.js --update-env",
+    "restart": "pm2 restart --update-env all",
+    "reload": "pm2 reload --update-env all",
     "stop": "pm2 stop all",
     "refresh": "yarn reload && yarn restart",
-    "reset": "pm2 reset all ",
+    "reset": "pm2 reset --env development --update-env all",
     "log": "pm2 log",
     "monit": "pm2 monit",
     "monitor": "pm2 monitor PM2 Plus Monitoring",
@@ -24,7 +24,8 @@
     "test": "jest --coverage"
   },
   "dependencies": {
-    "pm2": "^5.2.0",
+    "esm": "^3.2.25",
+    "pm2": "^5.2.2",
     "protobufjs": "^7.1.2",
     "tx2": "^1.0.5",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.10.0",
