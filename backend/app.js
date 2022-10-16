@@ -99,7 +99,7 @@ function openHandler(ws) {
     deviceID: deviceID,
     server: currentServer,
     space: sp,
-    channel: 1,
+    // channel: ch,
     host: host,
   }).toJSON();
 
@@ -109,33 +109,10 @@ function openHandler(ws) {
   ws.subscribe("server");
   sockets.set(ws, deviceID);
   users.set(ws, user);
+
   targetServerName = `server${user.server}`;
-
-  ws.subscribe(String(user.deviceID));
-  ws.subscribe(
-    `${targetServerName}/space${user.space.toLowerCase()}/channel${
-      user.channel
-    }`
-  );
-
-  pm2.sendDataToProcessId(
-    2,
-    {
-      type: "process:msg",
-      topic: true,
-      data: {
-        target: `open`,
-        user: users.get(ws),
-        callbacks: function(publishCallback) {
-          publishCallback(app);
-        },
-      },
-    },
-    function (err) {
-      // console.log(err);
-      console.log(arguments);
-    }
-  );
+  console.log("open", users.get(ws));
+  emitter.emit(`${targetServerName}::open`, app, ws, users.get(ws));
 }
 
 function messageHandler(ws, message, isBinary) {
@@ -147,23 +124,7 @@ function messageHandler(ws, message, isBinary) {
     let messageObject = JSON.parse(
       JSON.stringify(Message.decode(new Uint8Array(message)))
     );
-    pm2.sendDataToProcessId(
-      2,
-      {
-        type: "process:msg",
-        topic: true,
-        data: {
-          target: `location`,
-          user: users.get(ws),
-          messageObject,
-          message,
-        },
-      },
-      (err) => {
-        // console.log(err);
-      }
-    );
-    // emitter.emit(`${targetServerName}::location`, app, messageObject, message);
+    emitter.emit(`${targetServerName}::location`, app, messageObject, message);
     /** overriding user data */
     // DEL: 클라이언트에 맞춰야하므로 코드 보류
     // console.log("login", messageObject);
@@ -185,21 +146,7 @@ function messageHandler(ws, message, isBinary) {
       users.set(ws, overrideUserData);
 
       try {
-        pm2.sendDataToProcessId(
-          2,
-          {
-            type: "process:msg",
-            topic: true,
-            data: {
-              target: `login`,
-              user: users.get(ws),
-            },
-          },
-          (err) => {
-            // console.log(err);
-          }
-        );
-        // emitter.emit(`${targetServerName}::login`, app, users.get(ws));
+        emitter.emit(`${targetServerName}::login`, app, users.get(ws));
       } catch (e) {}
     } else {
       const overrideUserData = Object.assign(users.get(ws), data);
