@@ -8,6 +8,7 @@ let playerArray = [0];
 var good = false;
 var isPlayerSend = false;
 let MAX = 49;
+let START = 2;
 
 // const protobuf = require("protobufjs");
 const { Message, declareProtobuf } = require("./src/model/Message.test");
@@ -59,7 +60,6 @@ function playFunction(i) {
 }
 
 function locationFunction(i) {
-  console.log(i);
   const pack = {
     deviceID: sockets.get(i),
     pox: Math.floor(Math.random() * 1000) / 100,
@@ -74,7 +74,7 @@ function locationFunction(i) {
 (async function example() {
   // let driver = await new Builder().forBrowser("chrome").build();
   try {
-    for (let i = 1; i < MAX; i++) {
+    for (let i = START; i < MAX; i++) {
       sockets.set(i, new WebSocket(`ws://localhost:4000?sp=A`));
       sockets.get(i).binaryType = "arraybuffer";
       sockets.get(i).onopen = () => {
@@ -90,7 +90,7 @@ function locationFunction(i) {
       if (isPlayerSend === false) {
         if (typeof message.data === "string") {
           // let newData = JSON.parse(message.data);
-          for (let i = 1; i < MAX; i++) {
+          for (let i = START; i < MAX; i++) {
             playFunction(i);
             isPlayerSend = true;
           }
@@ -101,7 +101,7 @@ function locationFunction(i) {
     };
     setTimeout(() => {
       setInterval(() => {
-        for (let i = 1; i < MAX; i++) {
+        for (let i = START; i < MAX; i++) {
           locationFunction(i);
         }
       }, 16);

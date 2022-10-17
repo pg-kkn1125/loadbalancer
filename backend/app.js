@@ -47,6 +47,7 @@ const app = uWs
     if (listenSocket) {
       console.log(`${PORT}번 포트 열었음`);
     }
+    console.log('ping!')
   });
 
 function upgradeHandler(res, req, context) {
@@ -63,14 +64,14 @@ function upgradeHandler(res, req, context) {
   const hostArray = req.getHeader("origin").match(/http(s)?:\/\/([\w\W]+)/);
   const href = req.getHeader("origin") + req.getUrl() + "?" + req.getQuery();
   const host = hostArray ? hostArray[2] : "test";
-
-  const space = params.sp || "A";
+  console.log(params);
+  const space = (params.sp || "A").toLowerCase();
   res.upgrade(
     {
       url: req.getUrl(),
       params: params,
       /* 파라미터 추가되는 값 아래에 필드 추가 */
-      space: space.toLowerCase() || "a",
+      space: space,
       href: href,
       host: host,
     },
@@ -80,6 +81,8 @@ function upgradeHandler(res, req, context) {
     req.getHeader("sec-websocket-extensions"),
     context
   );
+
+  emitter.emit(`${targetServerName}::ping`, "connected!");
 }
 
 function openHandler(ws) {
@@ -116,7 +119,6 @@ function openHandler(ws) {
 }
 
 function messageHandler(ws, message, isBinary) {
-  // console.log(message, isBinary)
   if (isBinary) {
     /** // NOTICE: 로케이션으로 변경
      * Player 로그인 시 / protobuf 메세지
@@ -149,6 +151,7 @@ function messageHandler(ws, message, isBinary) {
         emitter.emit(`${targetServerName}::login`, app, users.get(ws));
       } catch (e) {}
     } else {
+      // 뷰어 데이터 덮어쓰기
       const overrideUserData = Object.assign(users.get(ws), data);
       users.set(ws, overrideUserData);
       try {

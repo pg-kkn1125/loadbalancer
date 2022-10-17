@@ -26,6 +26,10 @@ const spaces = new SpaceBalancer(50);
 
 let ch = 1;
 
+emitter.on(`${serverName}::ping`, (message) => {
+  console.log('pong::',message)
+});
+
 emitter.on(`${serverName}::open`, (app, ws, viewer) => {
   Object.assign(viewer, {
     channel: ch,
@@ -38,13 +42,28 @@ emitter.on(`${serverName}::open`, (app, ws, viewer) => {
       renewViewer.channel
     }`
   );
-
-  /* 로그인 시 플레이어 전달 */
-  tryPublish(
-    app,
-    String(renewViewer.deviceID),
-    JSON.stringify(spaces.getPlayers(renewViewer.space, renewViewer.channel))
+  // 뷰어 데이터 전달
+  app.publish(String(renewViewer.deviceID), JSON.stringify(new Array(renewViewer)));
+  // 로그인 시 플레이어 전달
+  console.log(
+    spaces.checkChannelUserAmountByType(
+      renewViewer.space,
+      renewViewer.channel,
+      "player"
+    )
   );
+  if (
+    spaces.checkChannelUserAmountByType(
+      renewViewer.space,
+      renewViewer.channel,
+      "player"
+    ) > 0
+  ) {
+    app.publish(
+      `${renewViewer.deviceID}`,
+      JSON.stringify(spaces.getPlayers(renewViewer.space, renewViewer.channel))
+    );
+  }
 
   checkLog(renewViewer.space, renewViewer.channel);
 });
@@ -55,6 +74,13 @@ emitter.on(`${serverName}::viewer`, (app, viewer) => {
   const renewViewer = spaces.overrideUser(viewer);
   users.set(String(renewViewer.deviceID), renewViewer);
 
+  app.publish(
+    `${serverName}/space${renewViewer.space.toLowerCase()}/channel${
+      renewViewer.channel
+    }`,
+    JSON.stringify(renewViewer)
+  );
+
   checkLog(renewViewer.space, renewViewer.channel);
 });
 
@@ -63,10 +89,11 @@ emitter.on(`${serverName}::login`, (app, player) => {
   const renewPlayer = spaces.addUserInEmptyChannel(player);
   users.set(String(renewPlayer.deviceID), renewPlayer);
   console.log(renewPlayer);
-  tryPublish(
-    app,
-    String(renewPlayer.deviceID),
-    new TextEncoder().encode(JSON.stringify(renewPlayer))
+  app.publish(
+    `${serverName}/space${renewPlayer.space.toLowerCase()}/channel${
+      renewPlayer.channel
+    }`,
+    JSON.stringify(spaces.getPlayers(renewPlayer.space, renewPlayer.channel))
   );
 
   // DEL: 클라이언트 연동으로 보류
@@ -85,9 +112,10 @@ emitter.on(`${serverName}::login`, (app, player) => {
 });
 
 emitter.on(`${serverName}::location`, (app, location, message) => {
-  console.log(`============================`);
-  console.log(location);
-  console.log(location.id);
+  // console.log(`============================`);
+  // console.log(location);
+  // console.log(location.id);
+  console.log("location id", location.id);
   const { id, pox, poy, poz, roy } = location;
   const locationConverter = {
     deviceID: id,
@@ -96,9 +124,8 @@ emitter.on(`${serverName}::location`, (app, location, message) => {
     poz,
     roy,
   };
-  // console.log(users);
+
   const player = users.get(String(locationConverter.deviceID));
-  console.log(player);
   const replacePlayer = Object.assign(player, locationConverter);
   users.set(String(locationConverter.deviceID), replacePlayer);
 
@@ -109,12 +136,12 @@ emitter.on(`${serverName}::location`, (app, location, message) => {
     replacePlayer.channel,
     replacePlayer.deviceID
   );
-  console.log("message", message);
+
+  // console.log("message", message); // NOTICE: 25byte 임
   locationMap[replaceUser.space.toLowerCase()].enter(
     replaceUser.channel,
     message
   );
-  // checkLog(replaceUser.space, replaceUser.channel);
 });
 
 // setTimeout(() => {
@@ -161,7 +188,7 @@ function testUser(amount = 1) {
       };
 
       Object.assign(user, location);
-      users.set(location.deviceID, user);
+      users.set(String(location.deviceID), user);
 
       spaces.overrideUser(user);
 
@@ -184,16 +211,16 @@ function testUser(amount = 1) {
 }
 
 emitter.on(`${serverName}::close`, (app, user) => {
-  console.log(user.deviceID, `번 유저 제거`);
+  // console.log(user.deviceID, `번 유저 제거`);
   const foundUser = JSON.parse(
     JSON.stringify(spaces.selectUser(user.space, user.channel, user.deviceID))
   );
-  spaces.deleteUser(users.get(foundUser.deviceID));
+  spaces.deleteUser(users.get(String(foundUser.deviceID)));
   app.publish(
     `${serverName}/space${foundUser.space.toLowerCase()}/channel${
       foundUser.channel
     }`,
-    String(foundUser.deviceID)
+    JSON.stringify(spaces.getPlayers(foundUser.space, foundUser.channel))
   );
   checkLog(foundUser.space, foundUser.channel);
 });
@@ -215,7 +242,8 @@ function locationBroadcastToChannel(sp) {
   if (spaces.hasSpace(sp)) {
     for (let channel of spaces.selectSpace(sp).keys()) {
       if (locationMap[sp].size(channel) > 0) {
-        const q = locationMap[sp].get(channel);
+        const queue = locationMap[sp].get(channel);
+        // console.log(queue);
         // let timeGap = 0;
         // console.time("start check latency");
         // const start = performance.now();
@@ -225,7 +253,7 @@ function locationBroadcastToChannel(sp) {
         tryPublish(
           app,
           `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
-          q,
+          queue,
           true
         );
 

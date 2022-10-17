@@ -40,9 +40,7 @@ class Queue {
   }
 
   enter(ch, data) {
-    this.#selectChannel(ch).enter(
-      new TextEncoder().encode(JSON.stringify(data))
-    );
+    this.#selectChannel(ch).enter(data);
   }
 
   get(ch) {

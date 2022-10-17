@@ -38,7 +38,7 @@ class Message {
     )(protobuf.Message.prototype, "roy");
   }
 
-  setMessage(properties) {
+  static setMessage(properties) {
     return new protobuf.Message(properties);
   }
 }
