@@ -26,16 +26,15 @@ const spaces = new SpaceBalancer(50);
 
 let ch = 1;
 
-emitter.on(`${serverName}::ping`, (message) => {
-  console.log('pong::',message)
-});
-
 emitter.on(`${serverName}::open`, (app, ws, viewer) => {
-  Object.assign(viewer, {
-    channel: ch,
-  });
+  // Object.assign(viewer, {
+  //   channel: ch,
+  // });
   const renewViewer = spaces.addUserInEmptyChannel(viewer);
   users.set(String(renewViewer.deviceID), renewViewer);
+  console.log(`${serverName}/space${renewViewer.space.toLowerCase()}/channel${
+    renewViewer.channel
+  }`)
   ws.subscribe(String(renewViewer.deviceID));
   ws.subscribe(
     `${serverName}/space${renewViewer.space.toLowerCase()}/channel${
@@ -43,14 +42,20 @@ emitter.on(`${serverName}::open`, (app, ws, viewer) => {
     }`
   );
   // 뷰어 데이터 전달
-  app.publish(String(renewViewer.deviceID), JSON.stringify(new Array(renewViewer)));
+  app.publish(
+    String(renewViewer.deviceID),
+    JSON.stringify(new Array(renewViewer))
+  );
+  console.log('viewer : ',renewViewer)
   // 로그인 시 플레이어 전달
   console.log(
+    "player 인원 : ",
     spaces.checkChannelUserAmountByType(
       renewViewer.space,
       renewViewer.channel,
       "player"
-    )
+    ),
+    " 명"
   );
   if (
     spaces.checkChannelUserAmountByType(
@@ -73,6 +78,7 @@ emitter.on(`${serverName}::viewer`, (app, viewer) => {
   console.log("viewer");
   const renewViewer = spaces.overrideUser(viewer);
   users.set(String(renewViewer.deviceID), renewViewer);
+  console.log(renewViewer);
 
   app.publish(
     `${serverName}/space${renewViewer.space.toLowerCase()}/channel${
@@ -88,7 +94,7 @@ emitter.on(`${serverName}::login`, (app, player) => {
   console.log("login");
   const renewPlayer = spaces.addUserInEmptyChannel(player);
   users.set(String(renewPlayer.deviceID), renewPlayer);
-  console.log(renewPlayer);
+  console.log("current player :", renewPlayer);
   app.publish(
     `${serverName}/space${renewPlayer.space.toLowerCase()}/channel${
       renewPlayer.channel
@@ -115,7 +121,7 @@ emitter.on(`${serverName}::location`, (app, location, message) => {
   // console.log(`============================`);
   // console.log(location);
   // console.log(location.id);
-  console.log("location id", location.id);
+  // console.log("location id", location.id);
   const { id, pox, poy, poz, roy } = location;
   const locationConverter = {
     deviceID: id,
@@ -204,7 +210,7 @@ function testUser(amount = 1) {
         poy: replaceUser.poy,
         poz: replaceUser.poz,
         roy: replaceUser.roy,
-        time: new Date(),
+        // time: new Date(),
       });
     });
   }, 8);

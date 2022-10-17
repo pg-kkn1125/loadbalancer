@@ -155,6 +155,59 @@ class SpaceBalancer {
   }
 
   /**
+   * 공간 내 유저 찾기
+   * @param {User} user
+   * @returns {User|null}
+   */
+  findUserInSpace(user) {
+    return Object.values(this.selectSpace(user.space)).some((space) => {
+      const found = Object.values(space).has(user.deviceID);
+
+      if (found) {
+        foundUser = found;
+        return found;
+      }
+
+      return null;
+    });
+  }
+
+  /**
+   * 공간 내 유저 찾아서 동기화
+   * @param {User} user
+   */
+  syncUserInSpace(user) {
+    let foundUser = this.findUserInSpace(user);
+
+    if (foundUser) {
+      console.log(foundUser)
+      Object.assign(user, foundUser);
+    }
+  }
+
+  setChannel(user) {
+    let foundUser = this.findUserInSpace(user);
+    if (!Boolean(foundUser)) {
+      const index = this.getUsableChannelIndex(user.space);
+      Object.assign(user, {
+        channel: index,
+      });
+    }
+  }
+
+  getUsableChannelIndex(space) {
+    const getSpace = this.selectSpace(space);
+    const holeChannel = Object.keys(getSpace).filter(
+      (channel) => this.checkChannelUserAmount(space, channel) < this.LIMIT
+    );
+    if (holeChannel.length === 0) {
+      holeChannel.push(getSpace.size + 1);
+    }
+
+    return holeChannel[0];
+  }
+
+  /**
    * 특정 공간의 채널에 위치한 사용자를 삭제
    * @param {User} user - 사용자 객체
    */
@@ -260,6 +313,10 @@ class SpaceBalancer {
       this.#addSpace(user.space);
     }
 
+    // 공간내 유저 찾기
+    this.syncUserInSpace(user);
+    this.setChannel(user);
+
     // 채널이 없으면 생성
     if (!this.hasChannel(user.space, user.channel)) {
       this.addChannel(user.space, user.channel);
@@ -268,7 +325,7 @@ class SpaceBalancer {
     // 유저가 존재하면 덮어쓰기
     if (this.hasUser(user.space, user.channel)) {
       this.overrideUser(user);
-      return;
+      return user;
     }
 
     // 공간 선택
@@ -284,6 +341,9 @@ class SpaceBalancer {
     if (foundHoleChannelIndex > -1) {
       const realChannelNumber = foundHoleChannelIndex + 1;
       this.changeUserChannel(user, realChannelNumber);
+      if (!this.hasChannel(user.space, user.channel)) {
+        this.addChannel(user.space, user.channel);
+      }
       const foundHoleChannel = this.selectSpace(user.space).get(
         String(user.channel)
       );

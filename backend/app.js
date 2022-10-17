@@ -47,8 +47,6 @@ const app = uWs
     if (listenSocket) {
       console.log(`${PORT}번 포트 열었음`);
     }
-    console.log("ping!");
-    emitter.emit(`${targetServerName}::ping`, "connected!");
   });
 
 function upgradeHandler(res, req, context) {
@@ -65,7 +63,6 @@ function upgradeHandler(res, req, context) {
   const hostArray = req.getHeader("origin").match(/http(s)?:\/\/([\w\W]+)/);
   const href = req.getHeader("origin") + req.getUrl() + "?" + req.getQuery();
   const host = hostArray ? hostArray[2] : "test";
-  console.log(params);
   const space = (params.sp || "A").toLowerCase();
   res.upgrade(
     {
@@ -85,12 +82,15 @@ function upgradeHandler(res, req, context) {
 }
 
 function openHandler(ws) {
+  const { url, params, space, href, host } = ws;
+  // console.log(params.sp)
+  if(!Boolean(params.sp)) return;
+
   deviceID++;
 
   if (isDisableKeepAlive) {
     ws.close();
   }
-  const { url, params, space, href, host } = ws;
 
   sp = params.sp;
 
@@ -113,7 +113,7 @@ function openHandler(ws) {
   users.set(ws, user);
 
   targetServerName = `server${user.server}`;
-  console.log("open", users.get(ws));
+  // console.log("open", users.get(ws));
   emitter.emit(`${targetServerName}::open`, app, ws, users.get(ws));
 }
 
