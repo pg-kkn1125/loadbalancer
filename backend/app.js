@@ -47,7 +47,8 @@ const app = uWs
     if (listenSocket) {
       console.log(`${PORT}번 포트 열었음`);
     }
-    console.log('ping!')
+    console.log("ping!");
+    emitter.emit(`${targetServerName}::ping`, "connected!");
   });
 
 function upgradeHandler(res, req, context) {
@@ -81,8 +82,6 @@ function upgradeHandler(res, req, context) {
     req.getHeader("sec-websocket-extensions"),
     context
   );
-
-  emitter.emit(`${targetServerName}::ping`, "connected!");
 }
 
 function openHandler(ws) {
