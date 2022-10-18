@@ -21,7 +21,7 @@
     "deleteall": "pm2 delete all",
     "killall": "yarn stop && yarn deleteall && pm2 kill",
     "flush": "pm2 flush all",
-    "test": "jest --coverage"
+    "test": "jest"
   },
   "dependencies": {
     "esm": "^3.2.25",
@@ -32,6 +32,8 @@
     "vite": "^3.1.7"
   },
   "devDependencies": {
+    "@babel/core": "^7.19.3",
+    "@babel/preset-env": "^7.19.4",
     "@types/jest": "^29.1.2",
     "jest": "^29.1.2"
   }

@@ -172,19 +172,53 @@ class SpaceBalancer {
     });
   }
 
+  getValues(map) {
+    return Array.from(map.values());
+  }
+
+  findHoleChannelIndex(space) {
+    const spaces = this.getValues(this.selectSpace(space));
+    const result = spaces.map((channel) => channel.size < this.LIMIT);
+    const findFirstIndex = result.indexOf(true) + 1;
+    return result.length > 0
+      ? findFirstIndex
+      : this.selectSpace(space).size + 1;
+  }
+
+  selectUserByDeviceID(deviceID) {
+    const entries = this.getValues(this.spaces);
+    for (let space of entries) {
+      const channels = this.getValues(space);
+      for (let channel of channels) {
+        const found = channel.get(String(deviceID));
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return {};
+  }
+
   /**
-   * 공간 내 유저 찾아서 동기화
+   * 공간 내 유저 찾아서 동기화 [x]
    * @param {User} user
    */
-  syncUserInSpace(user) {
+  syncOrSetUserChannel(user) {
     let foundUser = this.findUserInSpace(user);
-
+    let emptyOrLastChannelIndex = this.findHoleChannelIndex(user.space);
     if (foundUser) {
-      console.log(foundUser)
-      Object.assign(user, foundUser);
+      console.log(foundUser);
+      Object.assign(user, {
+        channel: foundUser.channel,
+      });
+    } else {
+      Object.assign(user, {
+        channel: emptyOrLastChannelIndex,
+      });
     }
   }
 
+  // [x]
   setChannel(user) {
     let foundUser = this.findUserInSpace(user);
     if (!Boolean(foundUser)) {
@@ -238,6 +272,23 @@ class SpaceBalancer {
   getSpaceChannelAmount(sp) {
     // 특정 공간에 할당된 채널 개수
     return this.selectSpace(sp).size;
+  }
+
+  channelSize(space, channel) {
+    const found = this.selectChannel(space, channel);
+    if (Boolean(found)) {
+      return found.size;
+    } else {
+      return undefined;
+    }
+  }
+  spaceSize(space) {
+    const found = this.selectSpace(space);
+    if (Boolean(found)) {
+      return found.size;
+    } else {
+      return undefined;
+    }
   }
 
   /**
@@ -297,9 +348,11 @@ class SpaceBalancer {
    * @param {User} user 유저 데이터
    */
   overrideUser(user) {
-    this.selectChannel(user.space, user.channel).set(
-      String(user.deviceID),
-      user
+    const foundUser = this.selectUserByDeviceID(user.deviceID);
+    Object.assign(foundUser, user);
+    this.selectChannel(foundUser.space, foundUser.channel).set(
+      String(foundUser.deviceID),
+      foundUser
     );
   }
 
@@ -308,14 +361,21 @@ class SpaceBalancer {
    * @param {User} user - 사용자 객체
    */
   addUserInEmptyChannel(user) {
-    // 공간이 없으면 생성
+    /**
+     * 공간이 없으면 생성
+     * 채널 할당 받음 - 빈 곳, 혹은 다 찼을때 마지막 채널 할당
+     * 채널이 없으면 생성
+     * 채널에 유저 넣음
+     */
+    // 공간이 없으면 생성 fix
     if (!this.hasSpace(user.space)) {
       this.#addSpace(user.space);
     }
 
     // 공간내 유저 찾기
-    this.syncUserInSpace(user);
-    this.setChannel(user);
+    // this.allocateChannel(user);
+    this.syncOrSetUserChannel(user);
+    // this.setChannel(user);
 
     // 채널이 없으면 생성
     if (!this.hasChannel(user.space, user.channel)) {

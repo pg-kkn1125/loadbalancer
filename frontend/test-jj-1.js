@@ -22,8 +22,9 @@ let viwerArray = [0];
 let playerArray = [0];
 var good = false;
 var isPlayerSend = false;
-let MIN = 3;
-let AMOUNT = 48;
+const TRY = process.env.TRY || 0;
+let MIN = 2;
+let AMOUNT = 49;
 let MAX = (() => AMOUNT + MIN)();
 const HOST = "localhost";
 
@@ -66,7 +67,7 @@ function locationFunction(i) {
   sockets.get(i).send(value);
 }
 
-(async function example() {
+function example() {
   // let driver = await new Builder().forBrowser("chrome").build();
   try {
     for (let i = MIN; i < MAX; i++) {
@@ -116,4 +117,5 @@ function locationFunction(i) {
       }, 16);
     }, 7000);
   }
-})();
+}
+example();

@@ -72,6 +72,9 @@ class User {
   }
 
   #createViewerData({
+    id = null, // 이게 원인인지도?
+    nickname = null, // 이게 원인인지도?
+    thread = null, // 이게 원인인지도?
     type = null,
     server = null,
     space = null,
@@ -81,6 +84,9 @@ class User {
     host = null,
     timestamp = null,
   }) {
+    this.id = id;
+    this.nickname = nickname;
+    this.thread = thread;
     this.type = type;
     this.server = server;
     this.space = space;

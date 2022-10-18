@@ -4,6 +4,7 @@
 import { app } from "../app.js";
 import Queue from "../src/models/Queue.js";
 import SpaceBalancer from "../src/models/SpaceBalancer.js";
+import SpaceBalancer2 from "../src/models/SpaceBalancer2.js";
 import pm2 from "pm2";
 import { emitter } from "../src/emitter/index.js";
 import { Message } from "../src/protobuf/index.js";
@@ -22,7 +23,8 @@ const locationMap = {
 const { SERVER_NAME, SERVER_PID } = process.env;
 const serverName = SERVER_NAME + (SERVER_PID - 1);
 const users = new Map();
-const spaces = new SpaceBalancer(50);
+// const spaces = new SpaceBalancer(50);
+const spaces = new SpaceBalancer2(50);
 
 let ch = 1;
 
@@ -30,13 +32,22 @@ emitter.on(`${serverName}::open`, (app, ws, viewer) => {
   // Object.assign(viewer, {
   //   channel: ch,
   // });
-  const renewViewer = spaces.addUserInEmptyChannel(viewer);
+  const renewViewer = spaces.add(viewer);
   users.set(String(renewViewer.deviceID), renewViewer);
-  console.log(`${serverName}/space${renewViewer.space.toLowerCase()}/channel${
-    renewViewer.channel
-  }`)
+  console.log(renewViewer.channel);
+  console.log(
+    `${serverName}/space${renewViewer.space.toLowerCase()}/channel${
+      renewViewer.channel
+    }`
+  );
   ws.subscribe(String(renewViewer.deviceID));
   ws.subscribe(
+    `${serverName}/space${renewViewer.space.toLowerCase()}/channel${
+      renewViewer.channel
+    }`
+  );
+  console.log(
+    "구독::",
     `${serverName}/space${renewViewer.space.toLowerCase()}/channel${
       renewViewer.channel
     }`
@@ -46,7 +57,7 @@ emitter.on(`${serverName}::open`, (app, ws, viewer) => {
     String(renewViewer.deviceID),
     JSON.stringify(new Array(renewViewer))
   );
-  console.log('viewer : ',renewViewer)
+  console.log("viewer : ", renewViewer);
   // 로그인 시 플레이어 전달
   console.log(
     "player 인원 : ",
@@ -92,7 +103,7 @@ emitter.on(`${serverName}::viewer`, (app, viewer) => {
 
 emitter.on(`${serverName}::login`, (app, player) => {
   console.log("login");
-  const renewPlayer = spaces.addUserInEmptyChannel(player);
+  const renewPlayer = spaces.add(player);
   users.set(String(renewPlayer.deviceID), renewPlayer);
   console.log("current player :", renewPlayer);
   app.publish(
@@ -167,7 +178,7 @@ function testUser(amount = 1) {
   }));
 
   usersList.forEach((user) => {
-    const renewPlayer = spaces.addUserInEmptyChannel(user);
+    const renewPlayer = spaces.add(user);
     users.set(renewPlayer.deviceID, renewPlayer);
 
     app.publish(
@@ -221,7 +232,8 @@ emitter.on(`${serverName}::close`, (app, user) => {
   const foundUser = JSON.parse(
     JSON.stringify(spaces.selectUser(user.space, user.channel, user.deviceID))
   );
-  spaces.deleteUser(users.get(String(foundUser.deviceID)));
+  const getUser = users.get(String(foundUser.deviceID));
+  spaces.removeUser(getUser.space, getUser.channel, getUser.deviceID);
   app.publish(
     `${serverName}/space${foundUser.space.toLowerCase()}/channel${
       foundUser.channel
@@ -245,7 +257,7 @@ setInterval(() => {
 }, 8);
 
 function locationBroadcastToChannel(sp) {
-  if (spaces.hasSpace(sp)) {
+  if (spaces.selectSpace(sp)) {
     for (let channel of spaces.selectSpace(sp).keys()) {
       if (locationMap[sp].size(channel) > 0) {
         const queue = locationMap[sp].get(channel);
