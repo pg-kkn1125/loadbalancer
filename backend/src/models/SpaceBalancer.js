@@ -1,294 +1,249 @@
+/**
+ * 제한 인원을 설정해서 자동으로 채널을 증설하고
+ * 빈 채널 또는 새로운 채널에 사용자를 자동으로
+ * 할당하는 객체
+ */
 class SpaceBalancer {
-  spaces = new Map();
-  LIMIT = 0;
+  #LIMIT = 0;
+  #spaces = new Map();
+
   /**
-   * @param {number} limit - 채널 당 제한 인원
+   * 초기화 값으로 각 채널당 제한 인원을 설정합니다.
+   * @param {number} limit 제한 인원
    */
   constructor(limit) {
-    this.LIMIT = limit;
+    this.#LIMIT = limit;
   }
 
   /**
-   * 해당 공간의 채널에 있는 플레이어 가져오기
-   * @param {string} sp - 공간
-   * @param {number} ch - 채널
-   * @returns
+   * 공간 값 초기 값으로 Map 객체를 지정합니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
    */
-  getPlayers(sp, ch) {
-    return this.filter(
-      Array.from(this.selectChannel(sp, ch).values()),
-      (origin) => origin.type === "player"
-    );
-  }
-
-  /**
-   * 채널 증가시 변경시키는 메서드
-   * @param {User} user - 유저 객체
-   * @param {number} changeChannelNumber - 변경된 채널 넘버
-   */
-  changeUserChannel(user, changeChannelNumber) {
-    Object.assign(user, {
-      channel: changeChannelNumber,
-    });
-  }
-
-  /**
-   * 공간 추가
-   * @param {string} sp - 공간
-   */
-  #addSpace(sp) {
-    this.spaces.set(sp.toLowerCase(), new Map());
-  }
-
-  /**
-   * 새로운 채널 추가
-   */
-  addChannel(sp, ch) {
-    this.selectSpace(sp).set(String(ch), new Map());
-  }
-
-  /**
-   * 마지막 인덱스로 새로운 채널 추가
-   * @param {string} sp - 공간
-   */
-  addChannelLast(sp) {
-    const lastIndex = this.getSpaceChannelAmount(sp) + 1;
-    this.addChannel(sp, lastIndex);
-    return lastIndex;
-  }
-
-  /**
-   * 공간 선택
-   * @param {string} sp - 공간
-   * @returns {object|undefined} - 공간 반환
-   */
-  selectSpace(sp) {
-    return this.spaces.get(sp.toLowerCase());
-  }
-
-  /**
-   * 특정 공간의 채널 선택
-   * @param {string} sp - 공간
-   * @param {number} ch - 채널
-   * @returns {object|undefined} - 채널 반환
-   */
-  selectChannel(sp, ch) {
-    return this.selectSpace(sp).get(String(ch));
-  }
-
-  /**
-   * 특정 공간의 채널에 있는 사용자 선택
-   * @param {string} sp - 공간
-   * @param {number} ch - 채널
-   * @param {number} deviceID - 사용자 디바이스 아이디
-   * @returns {User|undefined} - 특정 공간 -> 채널의 유저 반환
-   */
-  selectUser(sp, ch, deviceID) {
-    return this.selectChannel(sp, ch).get(String(deviceID));
-  }
-
-  /**
-   * 특정 공간의 마지막 채널 선택
-   * @param {string} sp - 공간
-   * @returns {Map|null} 채널 반환
-   */
-  selectLastChannel(sp) {
-    const hasSpace = this.hasSpace(sp);
-
-    if (!hasSpace) {
-      this.#addSpace(sp);
-    }
-
-    const convertValuesArray = Array.from(this.selectSpace(sp).values());
-    const newChannelIndex = convertValuesArray.length;
-    const last = convertValuesArray.slice(-1);
-
-    if (last.length === 1) {
-      return [last[0], newChannelIndex];
-    } else {
-      return null;
+  #initialSpace(space) {
+    if (!this.#spaces.has(space.toLowerCase())) {
+      this.#spaces.set(space.toLowerCase(), new Map());
     }
   }
 
   /**
-   * 특정 공간의 채널이 가득 찼는지 확인
-   * @param {string} sp - 공간
-   * @param {number} ch - 채널
-   * @returns {boolean} true/false 값을 반환
+   * 채널 값 초기 값으로 Map 객체를 지정합니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
+   * @param {number} channel - 채널 명
    */
-  isChannelFull(sp, ch) {
-    return this.selectChannel(sp, ch).size === this.LIMIT;
+  #initialChannel(space, channel) {
+    if (!this.selectSpace(space).has(String(channel))) {
+      this.selectSpace(space).set(String(channel), new Map());
+    }
   }
 
   /**
-   * 공간 내의 모든 채널이 가득 찼는지 조회
-   * @param {string} sp - 공간
-   * @returns {boolean} true/false
+   * Map 객체의 value 값을 배열로 반환합니다.
+   * @param {Map} map - 공간 또는 채널
+   * @returns {Map[]} - 공간 또는 채널 객체 배열
    */
-  isSpaceFull(sp) {
-    const convertChannelArray = Array.from(this.selectSpace(sp).values());
-    return convertChannelArray.every((channel) => channel.size === this.LIMIT);
-  }
-
-  /**
-   * 특정 공간의 채널에 사용자가 있는지 확인
-   * @param {string} sp - 공간
-   * @param {number} ch - 채널
-   * @param {number} deviceID - 사용자 디바이스 아이디
-   * @returns {boolean} true/false 값을 반환
-   */
-  hasUser(sp, ch, deviceID) {
-    return this.selectChannel(sp, ch).has(String(deviceID));
-  }
-
-  hasChannel(sp, ch) {
-    return this.selectSpace(sp).has(String(ch));
-  }
-
-  /**
-   * 공간 여부 조회
-   * @param {string} sp
-   * @returns {boolean} true/false
-   */
-  hasSpace(sp) {
-    return this.spaces.has(sp.toLowerCase());
-  }
-
-  /**
-   * 공간 내 유저 찾기
-   * @param {User} user
-   * @returns {User|null}
-   */
-  findUserInSpace(user) {
-    return Object.values(this.selectSpace(user.space)).some((space) => {
-      const found = Object.values(space).has(user.deviceID);
-
-      if (found) {
-        foundUser = found;
-        return found;
-      }
-
-      return null;
-    });
-  }
-
-  getValues(map) {
+  #getValues(map) {
     return Array.from(map.values());
   }
 
-  findHoleChannelIndex(space) {
-    const spaces = this.getValues(this.selectSpace(space));
-    const result = spaces.map((channel) => channel.size < this.LIMIT);
-    const findFirstIndex = result.indexOf(true) + 1;
-    return result.length > 0
-      ? findFirstIndex
-      : this.selectSpace(space).size + 1;
+  /**
+   * 공간을 찾아 반환합니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
+   * @returns {Map} - 공간 객체
+   */
+  selectSpace(space) {
+    this.#initialSpace(space);
+    return this.#spaces.get(space.toLowerCase());
   }
 
-  selectUserByDeviceID(deviceID) {
-    const entries = this.getValues(this.spaces);
-    for (let space of entries) {
-      const channels = this.getValues(space);
-      for (let channel of channels) {
-        const found = channel.get(String(deviceID));
-        if (found) {
-          return found;
+  /**
+   * 채널을 찾아 반환합니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
+   * @param {number} channel - 채널 명
+   * @returns {Map} - 채널 객체
+   */
+  selectChannel(space, channel) {
+    this.#initialChannel(space, channel);
+    return this.selectSpace(space).get(String(channel));
+  }
+
+  /**
+   * 사용자를 찾아 반환합니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
+   * @param {number} channel - 채널 명
+   * @param {number} deviceID - 사용자 고유 deviceID
+   * @returns
+   */
+  selectUser(space, channel, deviceID) {
+    return this.selectChannel(space, channel).get(String(deviceID));
+  }
+
+  /**
+   * 사용자를 자동으로 채널에 할당합니다.
+   * @param {User} user - 사용자 객체 (channel 값 없음)
+   * @returns {User} 채널 할당된 사용자 객체
+   */
+  add(user) {
+    // space 초기화
+    let renewUser = null;
+    // 1. 기존 유저 채널 있는지 확인
+    const foundUser = this.findUserByDeviceID(user.deviceID);
+    if (Boolean(foundUser)) {
+      // 1-1. 있으면 덮어쓰기
+      renewUser = Object.assign(foundUser, user);
+      this.overrideUser(renewUser);
+    } else {
+      // 1-2. 없으면 유저 채널 값 할당
+      renewUser = Object.assign(user, {
+        channel: this.allocateChannel(user.space),
+      });
+      // 2. 유저 해당 채널에 입장
+      this.selectChannel(renewUser.space, renewUser.channel).set(
+        String(renewUser.deviceID),
+        renewUser
+      );
+    }
+
+    return renewUser;
+  }
+
+  /**
+   * 기존 사용자를 찾아 내용을 덮어씁니다.
+   * @param {User} user - 사용자 객체
+   */
+  overrideUser(user) {
+    this.selectChannel(user.space, user.channel).set(
+      String(user.deviceID),
+      user
+    );
+  }
+
+  /**
+   * 빈 채널 또는 증설되는 채널의 인덱스를 찾아 반환합니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
+   * @returns {number} - 빈 채널 또는 증설된 채널 인덱스
+   */
+  allocateChannel(space) {
+    const spaces = this.selectSpace(space);
+    const channelArray = Array.from(spaces.values());
+    const holeIndex = channelArray.findIndex(
+      (channel) => channel.size < this.#LIMIT
+    );
+    if (channelArray.length === 0) {
+      return 1;
+    } else {
+      if (holeIndex !== -1) {
+        return holeIndex + 1;
+      } else {
+        return spaces.size + 1;
+      }
+    }
+  }
+
+  /**
+   * 사용자를 찾아 채널에서 제거합니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
+   * @param {number} channel - 채널 명
+   * @param {number} deviceID - 사용자 고유 deviceID
+   */
+  removeUser(space, channel, deviceID) {
+    this.selectChannel(space, channel).delete(String(deviceID));
+    if (this.userCount(space, channel) === 0) {
+      this.selectSpace(space).delete(String(channel));
+    }
+    if (this.channelCount(space) === 0) {
+      this.#spaces.delete(space.toLowerCase());
+    }
+  }
+
+  /**
+   * 채널을 삭제합니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
+   * @param {number} channel - 채널 명
+   */
+  removeChannel(space, channel) {
+    this.selectSpace(space).delete(String(channel));
+    if (this.channelCount(space) === 0) {
+      this.#spaces.delete(space.toLowerCase());
+    }
+  }
+
+  /**
+   * 사용자의 deviceID로 모든 공간과 모든 채널에서 조회합니다.
+   * @param {number} deviceID - 사용자 고유 deviceID
+   * @returns {User|undefined} - 사용자 객체 또는 undefined
+   */
+  findUserByDeviceID(deviceID) {
+    const spaceArray = this.#getValues(this.#spaces);
+    for (let channels of spaceArray) {
+      for (let channel of this.#getValues(channels)) {
+        if (channel.has(String(deviceID))) {
+          return channel.get(String(deviceID));
         }
       }
     }
-    return {};
+
+    return undefined;
   }
 
   /**
-   * 공간 내 유저 찾아서 동기화 [x]
-   * @param {User} user
+   * 공간을 유지하면서 Map객체 내부를 비웁니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
    */
-  syncOrSetUserChannel(user) {
-    let foundUser = this.findUserInSpace(user);
-    let emptyOrLastChannelIndex = this.findHoleChannelIndex(user.space);
-    if (foundUser) {
-      console.log(foundUser);
-      Object.assign(user, {
-        channel: foundUser.channel,
-      });
-    } else {
-      Object.assign(user, {
-        channel: emptyOrLastChannelIndex,
-      });
-    }
+  clearSpace(space) {
+    this.selectSpace(space).clear();
   }
 
-  // [x]
-  setChannel(user) {
-    let foundUser = this.findUserInSpace(user);
-    if (!Boolean(foundUser)) {
-      const index = this.getUsableChannelIndex(user.space);
-      Object.assign(user, {
-        channel: index,
-      });
-    }
+  /**
+   * 채널을 유지하면서 Map객체를 내부를 비웁니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
+   * @param {number} channel - 채널 명
+   */
+  clearChannel(space, channel) {
+    this.selectChannel(space, channel).clear();
   }
 
-  getUsableChannelIndex(space) {
-    const getSpace = this.selectSpace(space);
-    const holeChannel = Object.keys(getSpace).filter(
-      (channel) => this.checkChannelUserAmount(space, channel) < this.LIMIT
+  /**
+   * 공간을 모두 비웁니다. (가급적 사용 금지)
+   */
+  clearAll() {
+    this.#spaces.clear();
+  }
+
+  /**
+   * 사용자가 할당된 채널의 모든 인원 수를 반환합니다.
+   * @returns {number} - 채널 내 사용자 인원 수
+   */
+  userCount(space, channel) {
+    return this.selectChannel(space, channel).size;
+  }
+
+  /**
+   * 특정 공간의 채널 수를 반환합니다.
+   * @param {'A'|'B'|'C'|'D'|'E'} space - 공간 명
+   * @returns {Map} - 특정 공간의 채널 수
+   */
+  channelCount(space) {
+    return this.selectSpace(space).size;
+  }
+
+  /**
+   * 공간의 개수를 반환합니다.
+   * @returns {number} - 공간의 개수
+   */
+  spaceCount() {
+    return this.#spaces.size;
+  }
+
+  /**
+   * 공간 내 사용자 인원 수 조회
+   * @param {string} sp
+   * @returns {number} - 공간 내 사용자 인원 수 반환
+   */
+  checkSpaceUserAmount(sp) {
+    return Array.from(this.selectSpace(sp).values()).reduce(
+      (acc, cur) => (acc += cur.size),
+      0
     );
-    if (holeChannel.length === 0) {
-      holeChannel.push(getSpace.size + 1);
-    }
-
-    return holeChannel[0];
-  }
-
-  /**
-   * 특정 공간의 채널에 위치한 사용자를 삭제
-   * @param {User} user - 사용자 객체
-   */
-  deleteUser(user) {
-    const space = user.space,
-      channel = user.channel,
-      deviceID = user.deviceID;
-    if (this.hasUser(space, channel, deviceID)) {
-      this.selectChannel(space, channel).delete(String(deviceID));
-    }
-  }
-
-  /**
-   * 특정 채널의 사용자 인원 수 조회
-   * @param {string} sp - 공간
-   * @param {number} ch - 채널
-   * @returns {number} 사용자 인원 수 반환
-   */
-  getSpecifyChannelUserCount(sp, ch) {
-    return this.selectSpace(sp).get(String(ch)).size;
-  }
-
-  /**
-   * 특정 공간에 할당된 채널의 개수 조회
-   * @param {string} sp - 공간
-   * @returns {number} 채널 개수 반환
-   */
-  getSpaceChannelAmount(sp) {
-    // 특정 공간에 할당된 채널 개수
-    return this.selectSpace(sp).size;
-  }
-
-  channelSize(space, channel) {
-    const found = this.selectChannel(space, channel);
-    if (Boolean(found)) {
-      return found.size;
-    } else {
-      return undefined;
-    }
-  }
-  spaceSize(space) {
-    const found = this.selectSpace(space);
-    if (Boolean(found)) {
-      return found.size;
-    } else {
-      return undefined;
-    }
   }
 
   /**
@@ -316,14 +271,29 @@ class SpaceBalancer {
   }
 
   /**
-   * 공간 내 사용자 인원 수 조회
-   * @param {string} sp
-   * @returns {number} - 공간 내 사용자 인원 수 반환
+   * 현재 스레드에 존재하는 모든 사용자 수를 반환합니다.
+   * @returns {number} - 스레드 내 모든 사용자 수
    */
-  checkSpaceUserAmount(sp) {
-    return Array.from(this.selectSpace(sp).values()).reduce(
-      (acc, cur) => (acc += cur.size),
-      0
+  checkThreadUserAmount() {
+    let totalUserAmount = 0;
+    totalUserAmount += this.checkSpaceUserAmount("A");
+    totalUserAmount += this.checkSpaceUserAmount("B");
+    totalUserAmount += this.checkSpaceUserAmount("C");
+    totalUserAmount += this.checkSpaceUserAmount("D");
+    totalUserAmount += this.checkSpaceUserAmount("E");
+    return totalUserAmount;
+  }
+
+  /**
+   * 해당 공간의 채널에 있는 플레이어 가져오기
+   * @param {string} sp - 공간
+   * @param {number} ch - 채널
+   * @returns
+   */
+  getPlayers(sp, ch) {
+    return this.filter(
+      Array.from(this.selectChannel(sp, ch).values()),
+      (origin) => origin.type === "player"
     );
   }
 
@@ -342,100 +312,6 @@ class SpaceBalancer {
     }
     return temp;
   }
-
-  /**
-   * 유저 deviceID로 조회해서 기존 유저 정보 덮어쓰기
-   * @param {User} user 유저 데이터
-   */
-  overrideUser(user) {
-    const foundUser = this.selectUserByDeviceID(user.deviceID);
-    Object.assign(foundUser, user);
-    this.selectChannel(foundUser.space, foundUser.channel).set(
-      String(foundUser.deviceID),
-      foundUser
-    );
-  }
-
-  /**
-   * 자동으로 빈 채널을 찾아 사용자를 할당 혹은 모두 차있으면 마지막 채널에 사용자를 할당
-   * @param {User} user - 사용자 객체
-   */
-  addUserInEmptyChannel(user) {
-    /**
-     * 공간이 없으면 생성
-     * 채널 할당 받음 - 빈 곳, 혹은 다 찼을때 마지막 채널 할당
-     * 채널이 없으면 생성
-     * 채널에 유저 넣음
-     */
-    // 공간이 없으면 생성 fix
-    if (!this.hasSpace(user.space)) {
-      this.#addSpace(user.space);
-    }
-
-    // 공간내 유저 찾기
-    // this.allocateChannel(user);
-    this.syncOrSetUserChannel(user);
-    // this.setChannel(user);
-
-    // 채널이 없으면 생성
-    if (!this.hasChannel(user.space, user.channel)) {
-      this.addChannel(user.space, user.channel);
-    }
-
-    // 유저가 존재하면 덮어쓰기
-    if (this.hasUser(user.space, user.channel)) {
-      this.overrideUser(user);
-      return user;
-    }
-
-    // 공간 선택
-    const spaces = this.selectSpace(user.space);
-    // 채널 배열로 변환
-    const channelArray = Array.from(spaces.values());
-    // 빈 채널 인덱스
-    const foundHoleChannelIndex = channelArray.findIndex(
-      (channel) => channel.size < this.LIMIT
-    );
-
-    // 빈 채널이 있다면 빈 채널 인덱스를 사용자의 채널에 저장하고 해당 채널에 할당
-    if (foundHoleChannelIndex > -1) {
-      const realChannelNumber = foundHoleChannelIndex + 1;
-      this.changeUserChannel(user, realChannelNumber);
-      if (!this.hasChannel(user.space, user.channel)) {
-        this.addChannel(user.space, user.channel);
-      }
-      const foundHoleChannel = this.selectSpace(user.space).get(
-        String(user.channel)
-      );
-      foundHoleChannel.set(String(user.deviceID), user);
-    } else {
-      // 빈 채널 없이 모두 차있을때
-      if (this.isSpaceFull(user.space)) {
-        const lastIndex = this.addChannelLast(user.space);
-        Object.assign(user, {
-          channel: lastIndex,
-        });
-      }
-
-      const result = this.selectLastChannel(user.space);
-      if (result) {
-        const [last, index] = result;
-        Object.assign(user, {
-          channel: index,
-        });
-        last.set(String(user.deviceID), user);
-      } else {
-        Object.assign(user, {
-          channel: user.channel,
-        });
-      }
-    }
-    return user;
-  }
 }
 
-const limit50Balancer = new SpaceBalancer(50);
-
 export default SpaceBalancer;
-
-export { limit50Balancer };

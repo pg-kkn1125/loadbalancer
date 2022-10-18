@@ -38,9 +38,16 @@ const chat = {
   name: "chat",
   script: "./workers/chat.js",
   watch: ["./workers"],
-  node_args: '-r esm',
+  node_args: "-r esm",
   instances: 1,
-  ...envOptions,
+  ...{
+    ...Object.assign(envOptions, {
+      env: {
+        ...envOptions.env,
+        SERVER_NAME: `server`,
+      },
+    }),
+  },
   ...watchOptions,
   ...statusOptions,
 };
@@ -48,12 +55,12 @@ const chat = {
 /**
  * 서버 세팅
  */
-const SERVER_MAX_AMOUNT = 1;
+const SERVER_MAX_AMOUNT = 10;
 const server = {
   name: `server`,
   script: `./workers/server.js`,
   watch: ["./workers"],
-  node_args: '-r esm',
+  node_args: "-r esm",
   wait_ready: true,
   instances: SERVER_MAX_AMOUNT,
   increment_var: "SERVER_PID",
@@ -85,7 +92,7 @@ const receive = {
   name: "app", // 앱 이름
   script: "./app.js",
   watch: true,
-  node_args: '-r esm',
+  node_args: "-r esm",
   wait_ready: true,
   restart_delay: 1000,
   instances: 1,

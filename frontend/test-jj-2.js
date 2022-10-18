@@ -30,7 +30,7 @@ const HOST = "localhost";
 
 function viwerFunction(i) {
   const viewerData = {
-    type: "viewer",
+    type: "chat",
     device: `android${i}`,
     host: "https://location.com",
     timestamp: "20220921",
@@ -82,11 +82,11 @@ function example() {
   } catch (err) {
     console.log(err, 2);
   } finally {
-    setTimeout(() => {
-      for (let i = MIN; i < MAX; i++) {
-        playFunction(i);
-      }
-    }, 2000);
+    // setTimeout(() => {
+    //   for (let i = MIN; i < MAX; i++) {
+    //     playFunction(i);
+    //   }
+    // }, 2000);
 
     //     sockets.get(3).onmessage = (message) => {
     //         console.log(message.data);
@@ -109,13 +109,13 @@ function example() {
     //             }
     //         }
     //     };
-    setTimeout(() => {
-      setInterval(() => {
-        for (let i = MIN; i < MAX; i++) {
-          locationFunction(i);
-        }
-      }, 16);
-    }, 7000);
+    // setTimeout(() => {
+    //   setInterval(() => {
+    //     for (let i = MIN; i < MAX; i++) {
+    //       locationFunction(i);
+    //     }
+    //   }, 16);
+    // }, 7000);
   }
 }
 example();

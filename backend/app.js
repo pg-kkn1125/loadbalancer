@@ -1,7 +1,6 @@
 import uWs from "uWebSockets.js";
 import User from "./src/models/User.js";
 import { Message } from "./src/protobuf/index.js";
-import pm2 from "pm2";
 import { emitter } from "./src/emitter/index.js";
 
 /**
@@ -83,8 +82,7 @@ function upgradeHandler(res, req, context) {
 
 function openHandler(ws) {
   const { url, params, space, href, host } = ws;
-  // console.log(params.sp)
-  if(!Boolean(params.sp)) return;
+  if (!Boolean(params.sp)) return;
 
   deviceID++;
 
@@ -101,7 +99,6 @@ function openHandler(ws) {
     deviceID: deviceID,
     server: currentServer,
     space: sp,
-    // channel: ch,
     host: host,
   }).toJSON();
 
@@ -113,7 +110,6 @@ function openHandler(ws) {
   users.set(ws, user);
 
   targetServerName = `server${user.server}`;
-  // console.log("open", users.get(ws));
   emitter.emit(`${targetServerName}::open`, app, ws, users.get(ws));
 }
 
@@ -126,18 +122,6 @@ function messageHandler(ws, message, isBinary) {
       JSON.stringify(Message.decode(new Uint8Array(message)))
     );
     emitter.emit(`${targetServerName}::location`, app, messageObject, message);
-    /** overriding user data */
-    // DEL: 클라이언트에 맞춰야하므로 코드 보류
-    // console.log("login", messageObject);
-    // console.log("client=>", users.get(ws));
-    // const overrideUserData = Object.assign(users.get(ws), messageObject);
-    // console.log(overrideUserData);
-    // users.set(ws, overrideUserData);
-
-    // DEL: 클라이언트에 맞춰야하므로 코드 보류
-    // try {
-    //   emitter.emit(`${targetServerName}::location`, app, users.get(ws));
-    // } catch (e) {}
   } else {
     // 로그인 데이터 받음
     const data = JSON.parse(decoder.decode(message));
@@ -145,39 +129,21 @@ function messageHandler(ws, message, isBinary) {
     if (data.type === "player") {
       const overrideUserData = Object.assign(users.get(ws), data);
       users.set(ws, overrideUserData);
-
       try {
         emitter.emit(`${targetServerName}::login`, app, users.get(ws));
       } catch (e) {}
-    } else {
+    } else if (data.type === "viewer") {
       // 뷰어 데이터 덮어쓰기
       const overrideUserData = Object.assign(users.get(ws), data);
       users.set(ws, overrideUserData);
       try {
         emitter.emit(`${targetServerName}::viewer`, app, users.get(ws));
       } catch (e) {}
+    } else if (data.type === "chat") {
+      try {
+        emitter.emit(`chat`, app, data, message);
+      } catch (e) {}
     }
-    // if (data.hasOwnProperty("type")) {
-    //   // viewer data
-    //   // const overrideUserData = Object.assign(users.get(ws), data);
-    //   // users.set(ws, overrideUserData);
-    //   // emitter.emit(`${targetServerName}::viewer`, app, users.get(ws));
-    // } else {
-    //   console.log("location", data);
-    //   try {
-    //     emitter.emit(`${targetServerName}::location`, app, data, message);
-    //   } catch (e) {}
-    // }
-
-    /**
-     * require chat message emit
-     */
-    // 일반 json stringify 메세지
-    // const strings = decoder.decode(new Uint8Array(message));
-    // const json = JSON.parse(strings);
-    // const viewerData = Object.assign(json, {
-    // });
-    // emitter.emit(app, json);
   }
 }
 
@@ -193,19 +159,20 @@ function closeHandler(ws, code, message) {
 }
 
 /**
+ * // NOTICE: pm2 서버 무한 실행 문제 발생
  * 서버 부하 검사
  */
-emitter.on(`receive::balancer`, (state, serverName) => {
-  const serverNumber = Number(serverName.match(/server([\d]+)/)[1]);
-  // console.log(serverNumber);
-  if (state === "busy") {
-    currentServer += 1; // 서버 수 증가
-    console.log(currentServer, "번 서버 실행!");
-    console.log("it's too busy!!");
-  } else if (state === "comfortable") {
-    console.log("comfortable!");
-  }
-});
+// emitter.on(`receive::balancer`, (state, serverName) => {
+//   const serverNumber = Number(serverName.match(/server([\d]+)/)[1]);
+//   // console.log(serverNumber);
+//   if (state === "busy") {
+//     currentServer += 1; // 서버 수 증가
+//     console.log(currentServer, "번 서버 실행!");
+//     console.log("it's too busy!!");
+//   } else if (state === "comfortable") {
+//     console.log("comfortable!");
+//   }
+// });
 
 /**
  * 프로세스 죽었을 때 SIGINT 이벤트 전달
@@ -219,4 +186,4 @@ process.on("SIGINT", function () {
 
 process.send("ready");
 
-export { app, emitter };
+export { app };

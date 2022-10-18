@@ -1,5 +1,5 @@
 {
   "verbose": true,
   "collectCoverage": true,
-  "testPathIgnorePatterns": ["SpaceBalancer.test.js", "[x].+"]
+  "testPathIgnorePatterns": ["[x]SpaceBalancer.test.js", "[x].+"]
 }
