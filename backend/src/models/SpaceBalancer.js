@@ -83,6 +83,9 @@ class SpaceBalancer {
    * @returns {User} 채널 할당된 사용자 객체
    */
   add(user) {
+    if (user.type === "observer") { // 옵저버 옵션
+      return;
+    }
     // space 초기화
     let renewUser = null;
     // 1. 기존 유저 채널 있는지 확인

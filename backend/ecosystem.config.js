@@ -22,7 +22,7 @@ const watchOptions = {
   watch: true, // watch 여부
   // watch: ["server", "client"], // 감시할 폴더 설정
   // watch_delay: 1000, watch 딜레이 인터벌
-  ignore_watch: ["node_modules"], // watch 제외 대상
+  ignore_watch: ["node_modules", "coverage", "*.test.js"], // watch 제외 대상
 };
 const statusOptions = {
   max_memory_restart: "300M", // process memory가 300mb에 도달하면 reload 실행
@@ -37,14 +37,13 @@ const statusOptions = {
 const chat = {
   name: "chat",
   script: "./workers/chat.js",
-  watch: ["./workers"],
   node_args: "-r esm",
   instances: 1,
   ...{
     ...Object.assign(envOptions, {
       env: {
         ...envOptions.env,
-        SERVER_NAME: `server`,
+        SERVER_NAME: `chat`,
       },
     }),
   },
@@ -55,11 +54,10 @@ const chat = {
 /**
  * 서버 세팅
  */
-const SERVER_MAX_AMOUNT = 10;
+const SERVER_MAX_AMOUNT = 2;
 const server = {
   name: `server`,
   script: `./workers/server.js`,
-  watch: ["./workers"],
   node_args: "-r esm",
   wait_ready: true,
   instances: SERVER_MAX_AMOUNT,
@@ -91,12 +89,19 @@ const server = {
 const receive = {
   name: "app", // 앱 이름
   script: "./app.js",
-  watch: true,
   node_args: "-r esm",
   wait_ready: true,
   restart_delay: 1000,
   instances: 1,
-  ...envOptions,
+  ...{
+    ...Object.assign(envOptions, {
+      env: {
+        ...envOptions.env,
+        SERVER_NAME: `receive`,
+        SERVER_AMOUNT: SERVER_MAX_AMOUNT,
+      },
+    }),
+  },
   ...watchOptions,
   ...statusOptions,
 };

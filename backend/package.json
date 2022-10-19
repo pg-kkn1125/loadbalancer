@@ -9,7 +9,7 @@
   "scripts": {
     "localhost": "set HOST=localhost",
     "port3000": "set PORT=3000",
-    "start": "pm2 save && pm2 start --env development ecosystem.config.js --update-env",
+    "start": "pm2 save --force && pm2 start --env development ecosystem.config.js --update-env",
     "restart": "pm2 restart --update-env all",
     "reload": "pm2 reload --update-env all",
     "stop": "pm2 stop all",
@@ -21,7 +21,8 @@
     "deleteall": "pm2 delete all",
     "killall": "yarn stop && yarn deleteall && pm2 kill",
     "flush": "pm2 flush all",
-    "test": "jest"
+    "test": "jest",
+    "push:publish": "rm -rf coverage/ && npm run test && cd coverage/lcov-report/ && git init && git remote add origin https://github.com/pg-kkn1125/loadbalancer.git && git add -A && git commit -m \"커버리지 업로드\" && git push -f origin master:gh-pages"
   },
   "dependencies": {
     "esm": "^3.2.25",

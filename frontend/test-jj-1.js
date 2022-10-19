@@ -23,8 +23,8 @@ let playerArray = [0];
 var good = false;
 var isPlayerSend = false;
 const TRY = process.env.TRY || 0;
-let MIN = 2;
-let AMOUNT = 49;
+let MIN = 1;
+let AMOUNT = 302;
 let MAX = (() => AMOUNT + MIN)();
 const HOST = "localhost";
 

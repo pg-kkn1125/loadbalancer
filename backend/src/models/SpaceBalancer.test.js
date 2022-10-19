@@ -113,3 +113,19 @@ describe("채널 증설 테스트", () => {
     sb.clearAll();
   });
 });
+
+describe("옵저버 테스트", () => {
+  const sb = new SpaceBalancer(50);
+  test("옵저버 생성", () => {
+    const observer = {
+      type: "observer",
+      id: "admin",
+      server: 1,
+      space: "A",
+      channel: 1,
+    };
+    sb.add(observer);
+    expect(sb.channelCount("A")).toEqual(0);
+    expect(sb.checkSpaceUserAmount("A")).toEqual(0);
+  });
+});

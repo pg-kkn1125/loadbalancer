@@ -2,6 +2,7 @@ import uWs from "uWebSockets.js";
 import User from "./src/models/User.js";
 import { Message } from "./src/protobuf/index.js";
 import { emitter } from "./src/emitter/index.js";
+import { servers } from "./src/models/ServerBalancer.js";
 
 /**
  * PORT               === 서버 포트
@@ -9,9 +10,8 @@ import { emitter } from "./src/emitter/index.js";
  * users              === users 맵
  * isDisableKeepAlive === keepalive 설정
  * deviceID           === 디바이스 인덱스
- * server             === 스레드 === 서버
+ * currentServer      === 스레드 === 서버
  * sp                 === 공간
- * ch                 === 채널
  * targetServerName   === 타겟 서버 명
  * decoder            === message가 바이너리가 아닐 때
  */
@@ -22,7 +22,7 @@ let isDisableKeepAlive = false;
 let deviceID = 0;
 let currentServer = 1;
 let sp = "a"; // 공간은 URL 배정 받음
-let targetServerName = "";
+let targetServerName = (num) => "server" + num;
 const decoder = new TextDecoder();
 
 const app = uWs
@@ -60,9 +60,11 @@ function upgradeHandler(res, req, context) {
       .map((q) => q.split("="))
   );
   const hostArray = req.getHeader("origin").match(/http(s)?:\/\/([\w\W]+)/);
-  const href = req.getHeader("origin") + req.getUrl() + "?" + req.getQuery();
+  const href = req.getHeader("origin") + req.getUrl() + "?ap=" + params.sp;
   const host = hostArray ? hostArray[2] : "test";
   const space = (params.sp || "A").toLowerCase();
+  const isObserver = params.admin === "kkn" && params.ch !== undefined;
+
   res.upgrade(
     {
       url: req.getUrl(),
@@ -71,6 +73,12 @@ function upgradeHandler(res, req, context) {
       space: space,
       href: href,
       host: host,
+      ...(isObserver
+        ? {
+            observe: true,
+            channel: params.ch,
+          }
+        : {}),
     },
     /* Spell these correctly */
     req.getHeader("sec-websocket-key"),
@@ -84,33 +92,63 @@ function openHandler(ws) {
   const { url, params, space, href, host } = ws;
   if (!Boolean(params.sp)) return;
 
-  deviceID++;
+  if (ws.observe) {
+    users.set(ws, {
+      type: "observer",
+      id: "admin",
+      server: params.sv,
+      space: params.sp,
+      channel: params.ch,
+    });
+    sockets.set(ws, "admin");
+    ws.subscribe("server");
+    ws.subscribe("server" + ws.params.sv);
 
-  if (isDisableKeepAlive) {
-    ws.close();
+    emitter.emit(`server${ws.params.sv}::observer`, app, ws, users.get(ws));
+  } else {
+    const [isStable, allocateServerNumber] = servers.in(ws);
+
+    // [ ]: 서버 값 여기서 ws에 할당
+    currentServer = allocateServerNumber;
+    ws.server = currentServer;
+    servers.size(1);
+    servers.size(2);
+
+    deviceID++;
+
+    if (isDisableKeepAlive) {
+      ws.close();
+    }
+
+    sp = params.sp;
+
+    const user = new User({
+      id: null,
+      type: "viewer",
+      timestamp: new Date().getTime(),
+      deviceID: deviceID,
+      server: currentServer, // [ ]: 서버 밸런서에서 현재 서버 값 가져오기
+      space: sp,
+      host: host,
+    }).toJSON();
+
+    /**
+     * 전체 서버 구독
+     */
+    ws.subscribe("server");
+    ws.subscribe("server" + currentServer);
+    sockets.set(ws, deviceID);
+    users.set(ws, user);
+
+    emitter.emit(
+      `${targetServerName(currentServer)}::open`,
+      app,
+      ws,
+      users.get(ws)
+    );
   }
 
-  sp = params.sp;
-
-  const user = new User({
-    id: null,
-    type: "viewer",
-    timestamp: new Date().getTime(),
-    deviceID: deviceID,
-    server: currentServer,
-    space: sp,
-    host: host,
-  }).toJSON();
-
-  /**
-   * 전체 서버 구독
-   */
-  ws.subscribe("server");
-  sockets.set(ws, deviceID);
-  users.set(ws, user);
-
-  targetServerName = `server${user.server}`;
-  emitter.emit(`${targetServerName}::open`, app, ws, users.get(ws));
+  console.log("current", currentServer);
 }
 
 function messageHandler(ws, message, isBinary) {
@@ -121,23 +159,39 @@ function messageHandler(ws, message, isBinary) {
     let messageObject = JSON.parse(
       JSON.stringify(Message.decode(new Uint8Array(message)))
     );
-    emitter.emit(`${targetServerName}::location`, app, messageObject, message);
+    emitter.emit(
+      `${targetServerName(currentServer)}::location`,
+      app,
+      messageObject,
+      message
+    );
   } else {
     // 로그인 데이터 받음
     const data = JSON.parse(decoder.decode(message));
-    // NEW: 클라이언트 데이터 규격 맞춤
-    if (data.type === "player") {
+    console.log("type", users.get(ws).type);
+    if (users.get(ws).type === "observer") {
+      return;
+    } else if (data.type === "player") {
+      // NEW: 클라이언트 데이터 규격 맞춤
       const overrideUserData = Object.assign(users.get(ws), data);
       users.set(ws, overrideUserData);
       try {
-        emitter.emit(`${targetServerName}::login`, app, users.get(ws));
+        emitter.emit(
+          `${targetServerName(currentServer)}::login`,
+          app,
+          users.get(ws)
+        );
       } catch (e) {}
     } else if (data.type === "viewer") {
       // 뷰어 데이터 덮어쓰기
       const overrideUserData = Object.assign(users.get(ws), data);
       users.set(ws, overrideUserData);
       try {
-        emitter.emit(`${targetServerName}::viewer`, app, users.get(ws));
+        emitter.emit(
+          `${targetServerName(currentServer)}::viewer`,
+          app,
+          users.get(ws)
+        );
       } catch (e) {}
     } else if (data.type === "chat") {
       try {
@@ -154,8 +208,15 @@ function drainHandler(ws) {
 function closeHandler(ws, code, message) {
   console.log("WebSocket closed");
   try {
-    emitter.emit(`${targetServerName}::close`, app, users.get(ws));
-  } catch (e) {}
+    emitter.emit(
+      `${targetServerName(currentServer)}::close`,
+      app,
+      ws,
+      users.get(ws)
+    );
+  } catch (e) {
+    console.log(123, e);
+  }
 }
 
 /**

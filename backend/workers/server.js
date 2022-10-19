@@ -17,9 +17,12 @@ const locationMap = {
 };
 
 const { SERVER_NAME, SERVER_PID } = process.env;
-const serverName = SERVER_NAME + (SERVER_PID - 1);
+const serverNumber = SERVER_PID - 1;
+const serverName = SERVER_NAME + serverNumber;
 const users = new Map();
 const spaces = new SpaceBalancer(50);
+
+
 
 emitter.on(`${serverName}::open`, (app, ws, viewer) => {
   const renewViewer = spaces.add(viewer);
@@ -48,12 +51,37 @@ emitter.on(`${serverName}::open`, (app, ws, viewer) => {
       JSON.stringify(spaces.getPlayers(renewViewer.space, renewViewer.channel))
     );
   }
-  checkLog(renewViewer.space, renewViewer.channel);
+  checkLog(renewViewer.server, renewViewer.space, renewViewer.channel);
 
   emitter.emit("check::user::amount", serverNumber + 1);
 });
 
-// NOTICE: viewer data 보류
+// NOTICE: Observer 추가 (원활한 테스트를 위함)
+emitter.on(`${serverName}::observer`, (app, ws, observer) => {
+  ws.subscribe("-1");
+  ws.subscribe(
+    `${serverName}/space${observer.space.toLowerCase()}/channel${
+      observer.channel
+    }`
+  );
+
+  users.set("-1", observer);
+
+  if (
+    spaces.checkChannelUserAmountByType(
+      observer.space,
+      observer.channel,
+      "player"
+    ) > 0
+  ) {
+    ws.send(
+      JSON.stringify(spaces.getPlayers(observer.space, observer.channel))
+    );
+  }
+
+  checkLog(observer.server, observer.space, observer.channel);
+});
+
 emitter.on(`${serverName}::viewer`, (app, viewer) => {
   const renewViewer = spaces.overrideUser(viewer);
   users.set(String(renewViewer.deviceID), renewViewer);
@@ -65,7 +93,7 @@ emitter.on(`${serverName}::viewer`, (app, viewer) => {
     JSON.stringify(renewViewer)
   );
 
-  checkLog(renewViewer.space, renewViewer.channel);
+  checkLog(renewViewer.server, renewViewer.space, renewViewer.channel);
 });
 
 emitter.on(`${serverName}::login`, (app, player) => {
@@ -85,7 +113,7 @@ emitter.on(`${serverName}::login`, (app, player) => {
     JSON.stringify(renewPlayer)
   );
 
-  checkLog(renewPlayer.space, renewPlayer.channel);
+  checkLog(renewPlayer.server, renewPlayer.space, renewPlayer.channel);
 });
 
 emitter.on(`${serverName}::location`, (app, location, message) => {
@@ -116,20 +144,25 @@ emitter.on(`${serverName}::location`, (app, location, message) => {
   );
 });
 
-emitter.on(`${serverName}::close`, (app, user) => {
-  // console.log(user.deviceID, `번 유저 제거`);
-  const foundUser = JSON.parse(
-    JSON.stringify(spaces.selectUser(user.space, user.channel, user.deviceID))
-  );
-  const getUser = users.get(String(foundUser.deviceID));
-  spaces.removeUser(getUser.space, getUser.channel, getUser.deviceID);
-  app.publish(
-    `${serverName}/space${foundUser.space.toLowerCase()}/channel${
-      foundUser.channel
-    }`,
-    JSON.stringify(spaces.getPlayers(foundUser.space, foundUser.channel))
-  );
-  checkLog(foundUser.space, foundUser.channel);
+emitter.on(`${serverName}::close`, (app, ws, user) => {
+  if (user.type === "observer") {
+    // ...
+  } else {
+    console.log(user.deviceID, `번 유저 제거`);
+    const foundUser = JSON.parse(
+      JSON.stringify(spaces.selectUser(user.space, user.channel, user.deviceID))
+    );
+    const getUser = users.get(String(foundUser.deviceID));
+    spaces.removeUser(getUser.space, getUser.channel, getUser.deviceID);
+    users.delete(ws);
+    app.publish(
+      `${serverName}/space${foundUser.space.toLowerCase()}/channel${
+        foundUser.channel
+      }`,
+      JSON.stringify(spaces.getPlayers(foundUser.space, foundUser.channel))
+    );
+  }
+  checkLog(foundUser.server, foundUser.space, foundUser.channel);
 });
 
 process.send("ready");
@@ -167,7 +200,7 @@ function locationBroadcastToChannel(sp) {
  * @param {number} ch - 채널
  * @param {boolean} disable - 로그 비활성화 default: false
  */
-function checkLog(sp, ch, disable = false) {
+function checkLog(sv, sp, ch, disable = false) {
   if (disable) return;
 
   const channelUserCount = spaces.checkChannelUserAmount(sp, ch);
@@ -182,26 +215,27 @@ function checkLog(sp, ch, disable = false) {
     "player"
   );
   const spaceUserCount = spaces.checkSpaceUserAmount(sp);
+  console.log(`✨ current server is "${serverName}"`);
   console.log(
-    `[${sp}공간|${ch}채널]`,
+    `[${sv}서버${sp}공간|${ch}채널]`,
     `채널 내 유저 인원: ${channelUserCount
       .toString()
       .padStart(3, " ")} 명`.padStart(22, " ")
   );
   console.log(
-    `[${sp}공간|${ch}채널]`,
+    `[${sv}서버${sp}공간|${ch}채널]`,
     `채널 내 뷰어 인원: ${channelViewerCount
       .toString()
       .padStart(3, " ")} 명`.padStart(22, " ")
   );
   console.log(
-    `[${sp}공간|${ch}채널]`,
+    `[${sv}서버${sp}공간|${ch}채널]`,
     `채널 내 플레이어 인원: ${channelPlayerCount
       .toString()
       .padStart(3, " ")} 명`.padStart(20, " ")
   );
   console.log(
-    `[${sp}공간|${ch}채널]`,
+    `[${sv}서버${sp}공간|${ch}채널]`,
     `공간 내 유저 인원: ${spaceUserCount
       .toString()
       .padStart(3, " ")} 명`.padStart(22, " ")
