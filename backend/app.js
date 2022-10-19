@@ -3,6 +3,9 @@ import User from "./src/models/User.js";
 import { Message } from "./src/protobuf/index.js";
 import { emitter } from "./src/emitter/index.js";
 import { servers } from "./src/models/ServerBalancer.js";
+import broker from "./src/models/DataBroker.js";
+import pm2 from "pm2";
+import { spaces } from "./workers/server.js";
 
 /**
  * PORT               === 서버 포트
@@ -90,29 +93,41 @@ function upgradeHandler(res, req, context) {
 
 function openHandler(ws) {
   const { url, params, space, href, host } = ws;
-  if (!Boolean(params.sp)) return;
+  if (!Boolean(params.sp)) {
+    return;
+  }
 
   if (ws.observe) {
-    users.set(ws, {
+    const observer = {
       type: "observer",
       id: "admin",
       server: params.sv,
       space: params.sp,
       channel: params.ch,
-    });
-    sockets.set(ws, "admin");
-    ws.subscribe("server");
-    ws.subscribe("server" + ws.params.sv);
+    };
 
-    emitter.emit(`server${ws.params.sv}::observer`, app, ws, users.get(ws));
+    users.set(ws, observer);
+    sockets.set("admin", ws);
+    ws.server = observer.server;
+
+    ws.subscribe("server");
+    ws.subscribe("server" + users.get(ws).server);
+    ws.subscribe("admin");
+    ws.subscribe(
+      `${targetServerName(users.get(ws).server)}/space${users
+        .get(ws)
+        .space.toLowerCase()}/channel${users.get(ws).channel}`
+    );
+
+    broker.emit(ws.server + 1, "observer", {
+      observer: users.get(ws),
+    });
+    // emitter.emit(`server${ws.params.sv}::observer`, app, ws, users.get(ws));
   } else {
     const [isStable, allocateServerNumber] = servers.in(ws);
-
     // [ ]: 서버 값 여기서 ws에 할당
     currentServer = allocateServerNumber;
     ws.server = currentServer;
-    servers.size(1);
-    servers.size(2);
 
     deviceID++;
 
@@ -127,28 +142,37 @@ function openHandler(ws) {
       type: "viewer",
       timestamp: new Date().getTime(),
       deviceID: deviceID,
-      server: currentServer, // [ ]: 서버 밸런서에서 현재 서버 값 가져오기
+      server: ws.server, // [ ]: 서버 밸런서에서 현재 서버 값 가져오기
       space: sp,
       host: host,
     }).toJSON();
+    const renewViewer = spaces.add(user);
 
     /**
      * 전체 서버 구독
      */
     ws.subscribe("server");
-    ws.subscribe("server" + currentServer);
-    sockets.set(ws, deviceID);
-    users.set(ws, user);
-
-    emitter.emit(
-      `${targetServerName(currentServer)}::open`,
-      app,
-      ws,
-      users.get(ws)
+    ws.subscribe("server" + ws.server);
+    ws.subscribe(String(deviceID));
+    ws.subscribe(
+      `${targetServerName(
+        ws.server
+      )}/space${renewViewer.space.toLowerCase()}/channel${renewViewer.channel}`
     );
-  }
 
-  console.log("current", currentServer);
+    sockets.set(String(deviceID), ws);
+    users.set(ws, renewViewer);
+
+    broker.emit(ws.server + 1, "open", {
+      viewer: users.get(ws),
+    });
+    // emitter.emit(
+    //   `${targetServerName(currentServer)}::open`,
+    //   app,
+    //   ws,
+    //   users.get(ws)
+    // );
+  }
 }
 
 function messageHandler(ws, message, isBinary) {
@@ -159,43 +183,60 @@ function messageHandler(ws, message, isBinary) {
     let messageObject = JSON.parse(
       JSON.stringify(Message.decode(new Uint8Array(message)))
     );
-    emitter.emit(
-      `${targetServerName(currentServer)}::location`,
-      app,
-      messageObject,
-      message
-    );
+    console.log("들어온 데이터", messageObject);
+
+    if (ws.observe) return;
+    broker.emit(ws.server + 1, "location", {
+      location: messageObject,
+    });
+    // emitter.emit(
+    //   `${targetServerName(currentServer)}::location`,
+    //   app,
+    //   messageObject,
+    //   message
+    // );
   } else {
     // 로그인 데이터 받음
     const data = JSON.parse(decoder.decode(message));
-    console.log("type", users.get(ws).type);
     if (users.get(ws).type === "observer") {
+      // 옵저버 브로커는 open에 있음
       return;
     } else if (data.type === "player") {
       // NEW: 클라이언트 데이터 규격 맞춤
       const overrideUserData = Object.assign(users.get(ws), data);
       users.set(ws, overrideUserData);
       try {
-        emitter.emit(
-          `${targetServerName(currentServer)}::login`,
-          app,
-          users.get(ws)
-        );
+        broker.emit(ws.server + 1, "player", {
+          player: users.get(ws),
+        });
+        // emitter.emit(
+        //   `${targetServerName(currentServer)}::login`,
+        //   app,
+        //   users.get(ws)
+        // );
       } catch (e) {}
     } else if (data.type === "viewer") {
       // 뷰어 데이터 덮어쓰기
       const overrideUserData = Object.assign(users.get(ws), data);
       users.set(ws, overrideUserData);
       try {
-        emitter.emit(
-          `${targetServerName(currentServer)}::viewer`,
-          app,
-          users.get(ws)
-        );
+        broker.emit(ws.server + 1, "viewer", {
+          viewer: users.get(ws),
+        });
+
+        // emitter.emit(
+        //   `${targetServerName(currentServer)}::viewer`,
+        //   app,
+        //   users.get(ws)
+        // );
       } catch (e) {}
     } else if (data.type === "chat") {
       try {
-        emitter.emit(`chat`, app, data, message);
+        broker.emit(ws.server + 1, "chat", {
+          data,
+          message,
+        });
+        // emitter.emit(`chat`, app, data, message);
       } catch (e) {}
     }
   }
@@ -208,12 +249,13 @@ function drainHandler(ws) {
 function closeHandler(ws, code, message) {
   console.log("WebSocket closed");
   try {
-    emitter.emit(
-      `${targetServerName(currentServer)}::close`,
-      app,
-      ws,
-      users.get(ws)
-    );
+    broker.emit(ws.server + 1, users.get(ws));
+    // emitter.emit(
+    //   `${targetServerName(currentServer)}::close`,
+    //   app,
+    //   ws,
+    //   users.get(ws)
+    // );
   } catch (e) {
     console.log(123, e);
   }
@@ -245,6 +287,40 @@ process.on("SIGINT", function () {
   });
 });
 
+process.on("message", ({ data }) => {
+  if (data.target === "publish") {
+    const { packet } = data;
+    const { topic, content, zip } = packet;
+    const socket = sockets.get(String(deviceID));
+    if (zip) {
+      // 데이터 보존을 위해 텍스트로 받음
+      const convertTo25Byte = Message.encode(content).finish();
+      app.publish(topic, convertTo25Byte, true, true);
+    } else {
+      app.publish(topic, content);
+    }
+  } else if (data.target === "subscribe") {
+    const { packet } = data;
+    const { deviceID, channel } = packet;
+    const socket = sockets.get(String(deviceID));
+    sockets.set(socket, deviceID);
+    try {
+      users.set(
+        socket,
+        Object.assign(users.get(socket), {
+          channel: channel,
+        })
+      );
+    } catch (e) {
+      // process.exit(0);
+    }
+  }
+});
+
 process.send("ready");
 
-export { app };
+function getApp() {
+  return app;
+}
+
+export { getApp };

@@ -83,7 +83,8 @@ class SpaceBalancer {
    * @returns {User} 채널 할당된 사용자 객체
    */
   add(user) {
-    if (user.type === "observer") { // 옵저버 옵션
+    if (user.type === "observer") {
+      // 옵저버 옵션
       return;
     }
     // space 초기화
@@ -118,6 +119,7 @@ class SpaceBalancer {
       String(user.deviceID),
       user
     );
+    return this.selectUser(user.space, user.channel, user.deviceID);
   }
 
   /**
