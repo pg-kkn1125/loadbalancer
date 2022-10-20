@@ -50,6 +50,10 @@ let currentServer = 1;
 let sp = "a"; // 공간은 URL 배정 받음
 let targetServerName = (num) => "server" + num;
 
+// process.on("message", () => {
+//   console.log(serverName);
+// });
+
 const app = uWs
   .App({})
   .ws(`/*`, {
@@ -75,15 +79,6 @@ const app = uWs
   });
 
 function upgradeHandler(res, req, context) {
-  if (spaces.checkThreadUserAmount() === 300) {
-    pm2.sendDataToProcessId(Number(SERVER_PID), {
-      topic: true,
-      type: "process:msg",
-      data: {},
-    });
-    return;
-  }
-
   /**
    * 쿼리 가지고 옴
    */
@@ -125,6 +120,16 @@ function upgradeHandler(res, req, context) {
 }
 
 function openHandler(ws) {
+  if (spaces.checkThreadUserAmount() === 300) {
+    pm2.sendDataToProcessId(Number(servers.findHoleServer()), {
+      topic: true,
+      type: "process:msg",
+      data: { success: true },
+    });
+    console.log("연결 끊고 다음 서버에 연결");
+    // ws.end();
+  }
+
   const { url, params, space, href, host } = ws;
 
   if (!Boolean(params.sp)) {
@@ -162,9 +167,9 @@ function openHandler(ws) {
       );
     }
   } else {
-    const [isStable, allocateServerNumber] = servers.in(ws);
+    const [isStable, allocateServerNumber] = servers.in(ws, SERVER_PID);
     // [ ]: 서버 값 여기서 ws에 할당
-    ws.server = allocateServerNumber;
+    ws.server = SERVER_PID;
     deviceID++;
 
     let user = new User({
@@ -189,11 +194,11 @@ function openHandler(ws) {
      * 전체 서버 구독
      */
     ws.subscribe("server");
-    ws.subscribe("server" + allocateServerNumber);
+    ws.subscribe("server" + SERVER_PID);
     ws.subscribe(String(deviceID));
     ws.subscribe(
       `${targetServerName(
-        allocateServerNumber
+        SERVER_PID
       )}/space${renewViewer.space.toLowerCase()}/channel${renewViewer.channel}`
     );
 
@@ -239,7 +244,7 @@ function messageHandler(ws, message, isBinary) {
     if (ws.observe) return;
 
     locationMap[users.get(ws).space.toLowerCase()].enter(
-      users.get(ws).channel,
+      String(users.get(ws).channel),
       message
       // 데이터 보존을 위해 텍스트로 인코딩
     );
@@ -307,6 +312,11 @@ function closeHandler(ws, code, message) {
 
   const user = users.get(ws);
   spaces.removeUser(user.space, user.channel, user.deviceID);
+  console.log(
+    `${targetServerName(
+      users.get(ws).server
+    )}/space${user.space.toLowerCase()}/channel${user.channel}`
+  );
   try {
     app.publish(
       `${targetServerName(
@@ -413,7 +423,7 @@ function tryPublish(target, data, isLocation = false) {
       app.publish(target, data);
     }
   } catch (e) {
-    // console.log(e);
+    console.log(e);
   }
 }
 

@@ -44,7 +44,8 @@ class ServerBalancer {
     return isStable;
   }
 
-  in(ws) {
+  in(ws, initialNum) {
+    this.#currentServer = initialNum;
     const isStable = this.checkLimit(this.#currentServer);
     this.#logable &&
       dev.log(
@@ -62,7 +63,7 @@ class ServerBalancer {
       this.select(this.#currentServer).push(ws);
     } else {
       this.#allocateServerNumber();
-			dev.log('allocated server number',this.#currentServer)
+      dev.log("allocated server number", this.#currentServer);
       this.select(this.#currentServer).push(ws);
     }
     return [isStable, this.#currentServer]; // [안정되어있는지, 추가된 서버는 몇번인지]
@@ -143,7 +144,7 @@ class ServerBalancer {
   }
 }
 
-const servers = new ServerBalancer(100, 10);
+const servers = new ServerBalancer(300, 10);
 
 export default ServerBalancer;
 export { servers };
