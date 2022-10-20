@@ -143,7 +143,7 @@ class ServerBalancer {
   }
 }
 
-const servers = new ServerBalancer(300, 10);
+const servers = new ServerBalancer(100, 10);
 
 export default ServerBalancer;
 export { servers };

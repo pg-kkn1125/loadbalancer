@@ -1,5 +1,5 @@
 import Queue from "../src/models/Queue.js";
-import { spaces } from "./server.js";
+// import { spaces } from "./server.js";
 
 const { SERVER_NAME } = process.env;
 const serverName = SERVER_NAME;
@@ -34,19 +34,19 @@ setInterval(() => {
 }, 100);
 
 function chatBroadcastToChannel(sp) {
-  if (spaces.selectSpace(sp)) {
-    for (let channel of spaces.selectSpace(sp).keys()) {
-      if (locationMap[sp].size(channel) > 0) {
-        const queue = locationMap[sp].get(channel);
-        tryPublish(
-          getApp(),
-          `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
-          queue,
-          true
-        );
-      }
-    }
-  }
+  // if (spaces.selectSpace(sp)) {
+  //   for (let channel of spaces.selectSpace(sp).keys()) {
+  //     if (locationMap[sp].size(channel) > 0) {
+  //       const queue = locationMap[sp].get(channel);
+  //       tryPublish(
+  //         getApp(),
+  //         `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
+  //         queue,
+  //         true
+  //       );
+  //     }
+  //   }
+  // }
 }
 function tryPublish(app, target, data, isLocation = false) {
   try {

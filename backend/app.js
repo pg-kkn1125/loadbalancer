@@ -1,7 +1,6 @@
 import protobuf from "protobufjs";
 import uWs from "uWebSockets.js";
 import broker from "./src/models/DataBroker.js";
-import dev from "./src/models/DevConsole.js";
 import { servers } from "./src/models/ServerBalancer.js";
 import User from "./src/models/User.js";
 import { spaces } from "./workers/server.js";
@@ -258,13 +257,12 @@ process.on("message", ({ data }) => {
     const socket = sockets.get(String(deviceID));
     if (zip) {
       // NOTICE: 메세지를 다시 줄 때 프로토버프 사용해서 버퍼화 시켜야 함
-      const parsing = JSON.parse(content);
-      // 데이터 보존을 위해 텍스트로 받음
-      const convertTo25Byte = ProtoBuf.encode(new ProtoBuf(parsing)).finish();
-
-      app.publish(topic, convertTo25Byte, true, true);
+      // const parsing = JSON.parse(content);
+      // // 데이터 보존을 위해 텍스트로 받음
+      // const convertTo25Byte = ProtoBuf.encode(new ProtoBuf(parsing)).finish();
+      // app.publish(topic, convertTo25Byte, true, true);
     } else {
-      app.publish(topic, content);
+      // app.publish(topic, content);
     }
   } else if (data.target === "subscribe") {
     const { packet } = data;
@@ -298,4 +296,4 @@ function getApp() {
   return app;
 }
 
-export { getApp };
+export { getApp, sockets, users, ProtoBuf };

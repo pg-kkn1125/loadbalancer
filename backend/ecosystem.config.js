@@ -56,7 +56,7 @@ const server = {
   wait_ready: true,
   instances: SERVER_MAX_AMOUNT,
   increment_var: "SERVER_PID",
-  env: { ...env, SERVER_NAME: `server`, SERVER_PID: 2 },
+  env: { ...env, SERVER_NAME: `server`, SERVER_PID: 1 },
   env_production,
   env_development,
   ...watchOptions,
@@ -138,7 +138,7 @@ const production = {
 // }
 
 module.exports = {
-  apps: [receive, chat, server],
+  apps: [/* receive, */ chat, server],
   deploy: {
     production: production,
   },
