@@ -62,7 +62,7 @@ class ServerBalancer {
       this.select(this.#currentServer).push(ws);
     } else {
       this.#allocateServerNumber();
-			console.log('allocated server number',this.#currentServer)
+      console.log("allocated server number", this.#currentServer);
       this.select(this.#currentServer).push(ws);
     }
     return [isStable, this.#currentServer]; // [안정되어있는지, 추가된 서버는 몇번인지]
