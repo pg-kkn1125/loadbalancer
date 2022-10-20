@@ -4,8 +4,9 @@
 import { app } from "../app.js";
 import Queue from "../src/models/Queue.js";
 import SpaceBalancer from "../src/models/SpaceBalancer.js";
-import pm2 from "pm2";
-import { emitter } from "../src/emitter/index.js";
+// import { emitter } from "../src/emitter/index.js";
+import EventEmitter from "events";
+const emitter = new EventEmitter();
 
 const locationMap = {
   queueLimit: 1000,
@@ -22,7 +23,7 @@ const serverName = SERVER_NAME + serverNumber;
 const users = new Map();
 const spaces = new SpaceBalancer(50);
 
-
+console.log('start server',serverName)
 
 emitter.on(`${serverName}::open`, (app, ws, viewer) => {
   const renewViewer = spaces.add(viewer);

@@ -1,9 +1,10 @@
 import uWs from "uWebSockets.js";
 import User from "./src/models/User.js";
 import { Message } from "./src/protobuf/index.js";
-import { emitter } from "./src/emitter/index.js";
+// import { emitter } from "./src/emitter/index.js";
 import { servers } from "./src/models/ServerBalancer.js";
-
+import EventEmitter from "events";
+const emitter = new EventEmitter();
 /**
  * PORT               === 서버 포트
  * sockets            === sockets 맵

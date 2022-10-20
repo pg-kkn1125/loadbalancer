@@ -1,7 +1,9 @@
 import { app } from "../app.js";
-import { emitter } from "../src/emitter/index.js";
 import ChatQueue from "../src/models/Queue.js";
 import { spaces } from "./server.js";
+// import { emitter } from "../src/emitter/index.js";
+import EventEmitter from "events";
+const emitter = new EventEmitter();
 
 const { SERVER_NAME } = process.env;
 const serverName = SERVER_NAME;

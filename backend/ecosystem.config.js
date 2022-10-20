@@ -1,22 +1,18 @@
-const pm2 = require("pm2");
-
 /**
  * 공통 속성
  */
-const envOptions = {
-  env: {
-    // 실행 시 환경 변수 설정
-    HOST: "localhost",
-    PORT: 4000,
-  },
-  env_production: {
-    // 개발 환경별 환경 변수 설정
-    NODE_ENV: "production",
-  },
-  env_development: {
-    // 개발 환경별 환경 변수 설정
-    NODE_ENV: "development",
-  },
+const env = {
+  // 실행 시 환경 변수 설정
+  HOST: "localhost",
+  PORT: 4000,
+};
+const env_production = {
+  // 개발 환경별 환경 변수 설정
+  NODE_ENV: "production",
+};
+const env_development = {
+  // 개발 환경별 환경 변수 설정
+  NODE_ENV: "development",
 };
 const watchOptions = {
   watch: true, // watch 여부
@@ -38,15 +34,11 @@ const chat = {
   name: "chat",
   script: "./workers/chat.js",
   node_args: "-r esm",
+  wait_ready: true,
   instances: 1,
-  ...{
-    ...Object.assign(envOptions, {
-      env: {
-        ...envOptions.env,
-        SERVER_NAME: `chat`,
-      },
-    }),
-  },
+  env: { ...env, SERVER_NAME: `chat` },
+  env_production,
+  env_development,
   ...watchOptions,
   ...statusOptions,
 };
@@ -62,15 +54,9 @@ const server = {
   wait_ready: true,
   instances: SERVER_MAX_AMOUNT,
   increment_var: "SERVER_PID",
-  ...{
-    ...Object.assign(envOptions, {
-      env: {
-        ...envOptions.env,
-        SERVER_NAME: `server`,
-        SERVER_PID: 2,
-      },
-    }),
-  },
+  env: { ...env, SERVER_NAME: `server`, SERVER_PID: 2 },
+  env_production,
+  env_development,
   ...watchOptions,
   ...statusOptions,
 };
@@ -91,17 +77,11 @@ const receive = {
   script: "./app.js",
   node_args: "-r esm",
   wait_ready: true,
-  restart_delay: 1000,
+  // restart_delay: 1000,
   instances: 1,
-  ...{
-    ...Object.assign(envOptions, {
-      env: {
-        ...envOptions.env,
-        SERVER_NAME: `receive`,
-        SERVER_AMOUNT: SERVER_MAX_AMOUNT,
-      },
-    }),
-  },
+  env: { ...env, SERVER_NAME: `receive`, SERVER_AMOUNT: SERVER_MAX_AMOUNT },
+  env_production,
+  env_development,
   ...watchOptions,
   ...statusOptions,
 };
@@ -120,40 +100,6 @@ const production = {
     "npm install && pm2 reload ecosystem.config.js --env production",
   "pre-setup": "",
 };
-
-// pm2.connect(function (err) {
-//   if (err) {
-//     console.log(err);
-//     process.exit(2);
-//   }
-
-//   setTimeout(() => {
-//     pm2.start(receive, controlFn("app"));
-//     setTimeout(() => {
-//       pm2.start(chat, controlFn("chat"));
-//       setTimeout(() => {
-//         pm2.start(server, controlFn("server"));
-//       }, 100);
-//     }, 10);
-//   }, 10);
-// });
-
-// function controlFn(name) {
-//   return function (err, apps) {
-//     if (err) {
-//       console.log(err);
-//       return pm2.disconnect();
-//     }
-
-//     pm2.list((err, list) => {
-//       // console.log(err, list);
-
-//       pm2.restart(name, (err, proc) => {
-//         pm2.disconnect();
-//       });
-//     });
-//   };
-// }
 
 module.exports = {
   apps: [receive, chat, server],
