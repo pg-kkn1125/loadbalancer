@@ -2,7 +2,7 @@
  * Protobuf 메세지 클래스 설정
  */
 import protobuf from "protobufjs";
-
+let isExecute = false;
 class Message {
   #message = null;
 
@@ -20,6 +20,7 @@ class Message {
   }
 
   initializeFields() {
+    if (isExecute) return;
     /**
      * Protobuf 규격 초기화
      */
@@ -36,6 +37,8 @@ class Message {
       "sfixed32",
       "required"
     )(protobuf.Message.prototype, "roy");
+    
+    isExecute = true;
   }
 
   static setMessage(properties) {

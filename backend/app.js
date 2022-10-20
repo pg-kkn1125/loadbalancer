@@ -1,11 +1,25 @@
+import protobuf from "protobufjs";
 import uWs from "uWebSockets.js";
-import User from "./src/models/User.js";
-import { Message } from "./src/protobuf/index.js";
-import { emitter } from "./src/emitter/index.js";
-import { servers } from "./src/models/ServerBalancer.js";
 import broker from "./src/models/DataBroker.js";
-import pm2 from "pm2";
+import dev from "./src/models/DevConsole.js";
+import { servers } from "./src/models/ServerBalancer.js";
+import User from "./src/models/User.js";
 import { spaces } from "./workers/server.js";
+
+// ---------- protobuf js ------------
+var Type = protobuf.Type,
+  Field = protobuf.Field;
+function ProtoBuf(properties) {
+  protobuf.Message.call(this, properties);
+}
+(ProtoBuf.prototype = Object.create(protobuf.Message)).constructor = ProtoBuf;
+
+/* Field Settings */
+Field.d(1, "fixed32", "required")(ProtoBuf.prototype, "id");
+Field.d(2, "float", "required")(ProtoBuf.prototype, "pox");
+Field.d(3, "float", "required")(ProtoBuf.prototype, "poy");
+Field.d(4, "float", "required")(ProtoBuf.prototype, "poz");
+Field.d(5, "sfixed32", "required")(ProtoBuf.prototype, "roy");
 
 /**
  * PORT               === 서버 포트
@@ -45,6 +59,7 @@ const app = uWs
   })
   // port는 숫자여야합니다. 아니면 열리지 않습니다... 😂
   .listen(PORT, (listenSocket) => {
+    process.send("ready");
     console.log(`listening on ws://locahost:${PORT}`);
     if (listenSocket) {
       console.log(`${PORT}번 포트 열었음`);
@@ -62,8 +77,9 @@ function upgradeHandler(res, req, context) {
       .filter((q) => q)
       .map((q) => q.split("="))
   );
+
   const hostArray = req.getHeader("origin").match(/http(s)?:\/\/([\w\W]+)/);
-  const href = req.getHeader("origin") + req.getUrl() + "?ap=" + params.sp;
+  const href = req.getHeader("origin") + req.getUrl() + "?sp=" + params.sp;
   const host = hostArray ? hostArray[2] : "test";
   const space = (params.sp || "A").toLowerCase();
   const isObserver = params.admin === "kkn" && params.ch !== undefined;
@@ -93,6 +109,7 @@ function upgradeHandler(res, req, context) {
 
 function openHandler(ws) {
   const { url, params, space, href, host } = ws;
+
   if (!Boolean(params.sp)) {
     return;
   }
@@ -101,34 +118,31 @@ function openHandler(ws) {
     const observer = {
       type: "observer",
       id: "admin",
-      server: params.sv,
+      server: Number(params.sv),
       space: params.sp,
-      channel: params.ch,
+      channel: Number(params.ch),
     };
 
-    users.set(ws, observer);
-    sockets.set("admin", ws);
-    ws.server = observer.server;
-
     ws.subscribe("server");
-    ws.subscribe("server" + users.get(ws).server);
+    ws.subscribe("server" + observer.server);
     ws.subscribe("admin");
     ws.subscribe(
-      `${targetServerName(users.get(ws).server)}/space${users
-        .get(ws)
-        .space.toLowerCase()}/channel${users.get(ws).channel}`
+      `${targetServerName(
+        observer.server
+      )}/space${observer.space.toLowerCase()}/channel${observer.channel}`
     );
 
-    broker.emit(ws.server + 1, "observer", {
-      observer: users.get(ws),
+    sockets.set("admin", ws);
+    users.set(ws, observer);
+
+    broker.emit(observer.server + 1, "observer", {
+      observer: observer,
     });
-    // emitter.emit(`server${ws.params.sv}::observer`, app, ws, users.get(ws));
   } else {
     const [isStable, allocateServerNumber] = servers.in(ws);
     // [ ]: 서버 값 여기서 ws에 할당
     currentServer = allocateServerNumber;
     ws.server = currentServer;
-
     deviceID++;
 
     if (isDisableKeepAlive) {
@@ -166,12 +180,6 @@ function openHandler(ws) {
     broker.emit(ws.server + 1, "open", {
       viewer: users.get(ws),
     });
-    // emitter.emit(
-    //   `${targetServerName(currentServer)}::open`,
-    //   app,
-    //   ws,
-    //   users.get(ws)
-    // );
   }
 }
 
@@ -181,20 +189,13 @@ function messageHandler(ws, message, isBinary) {
      * Player 로그인 시 / protobuf 메세지
      */
     let messageObject = JSON.parse(
-      JSON.stringify(Message.decode(new Uint8Array(message)))
+      JSON.stringify(ProtoBuf.decode(new Uint8Array(message)))
     );
-    console.log("들어온 데이터", messageObject);
 
     if (ws.observe) return;
     broker.emit(ws.server + 1, "location", {
       location: messageObject,
     });
-    // emitter.emit(
-    //   `${targetServerName(currentServer)}::location`,
-    //   app,
-    //   messageObject,
-    //   message
-    // );
   } else {
     // 로그인 데이터 받음
     const data = JSON.parse(decoder.decode(message));
@@ -209,11 +210,6 @@ function messageHandler(ws, message, isBinary) {
         broker.emit(ws.server + 1, "player", {
           player: users.get(ws),
         });
-        // emitter.emit(
-        //   `${targetServerName(currentServer)}::login`,
-        //   app,
-        //   users.get(ws)
-        // );
       } catch (e) {}
     } else if (data.type === "viewer") {
       // 뷰어 데이터 덮어쓰기
@@ -223,12 +219,6 @@ function messageHandler(ws, message, isBinary) {
         broker.emit(ws.server + 1, "viewer", {
           viewer: users.get(ws),
         });
-
-        // emitter.emit(
-        //   `${targetServerName(currentServer)}::viewer`,
-        //   app,
-        //   users.get(ws)
-        // );
       } catch (e) {}
     } else if (data.type === "chat") {
       try {
@@ -236,7 +226,6 @@ function messageHandler(ws, message, isBinary) {
           data,
           message,
         });
-        // emitter.emit(`chat`, app, data, message);
       } catch (e) {}
     }
   }
@@ -248,44 +237,19 @@ function drainHandler(ws) {
 
 function closeHandler(ws, code, message) {
   console.log("WebSocket closed");
+  if (!Boolean(ws.params.sp)) {
+    return;
+  }
+
+  const user = users.get(ws);
   try {
-    broker.emit(ws.server + 1, users.get(ws));
-    // emitter.emit(
-    //   `${targetServerName(currentServer)}::close`,
-    //   app,
-    //   ws,
-    //   users.get(ws)
-    // );
+    broker.emit(user.server + 1, "close", {
+      user: user,
+    });
   } catch (e) {
     console.log(123, e);
   }
 }
-
-/**
- * // NOTICE: pm2 서버 무한 실행 문제 발생
- * 서버 부하 검사
- */
-// emitter.on(`receive::balancer`, (state, serverName) => {
-//   const serverNumber = Number(serverName.match(/server([\d]+)/)[1]);
-//   // console.log(serverNumber);
-//   if (state === "busy") {
-//     currentServer += 1; // 서버 수 증가
-//     console.log(currentServer, "번 서버 실행!");
-//     console.log("it's too busy!!");
-//   } else if (state === "comfortable") {
-//     console.log("comfortable!");
-//   }
-// });
-
-/**
- * 프로세스 죽었을 때 SIGINT 이벤트 전달
- */
-process.on("SIGINT", function () {
-  isDisableKeepAlive = true;
-  app.close(function () {
-    process.exit(0);
-  });
-});
 
 process.on("message", ({ data }) => {
   if (data.target === "publish") {
@@ -293,8 +257,11 @@ process.on("message", ({ data }) => {
     const { topic, content, zip } = packet;
     const socket = sockets.get(String(deviceID));
     if (zip) {
+      // NOTICE: 메세지를 다시 줄 때 프로토버프 사용해서 버퍼화 시켜야 함
+      const parsing = JSON.parse(content);
       // 데이터 보존을 위해 텍스트로 받음
-      const convertTo25Byte = Message.encode(content).finish();
+      const convertTo25Byte = ProtoBuf.encode(new ProtoBuf(parsing)).finish();
+
       app.publish(topic, convertTo25Byte, true, true);
     } else {
       app.publish(topic, content);
@@ -317,7 +284,15 @@ process.on("message", ({ data }) => {
   }
 });
 
-process.send("ready");
+/**
+ * 프로세스 죽었을 때 SIGINT 이벤트 전달
+ */
+process.on("SIGINT", function () {
+  isDisableKeepAlive = true;
+  app.close(function () {
+    process.exit(0);
+  });
+});
 
 function getApp() {
   return app;

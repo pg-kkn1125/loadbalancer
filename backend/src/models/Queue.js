@@ -1,5 +1,3 @@
-import { Message } from "../protobuf";
-
 class LocationQueue {
   constructor() {
     this.count = 0;

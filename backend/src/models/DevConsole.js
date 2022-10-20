@@ -1,4 +1,9 @@
 class DevConsole {
+  #visible = true;
+  toggleVisible() {
+    this.#visible = !this.#visible;
+    console.log(this.#visible?'로그가 켜졌습니다.':'로그가 꺼졌습니다.')
+  }
   assert(condition, ...data) {
     console.assert(condition, ...data);
   }

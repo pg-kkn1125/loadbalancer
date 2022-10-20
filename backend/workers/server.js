@@ -1,13 +1,10 @@
 /**
  * app을 가져와야 emitter가 연동 됨
  */
-import { emitter } from "../src/emitter/index.js";
 import broker from "../src/models/DataBroker.js";
 import dev from "../src/models/DevConsole.js";
 import Queue from "../src/models/Queue.js";
-import { getApp } from "../app.js";
 import SpaceBalancer from "../src/models/SpaceBalancer.js";
-import { Message } from "../src/protobuf/index.js";
 
 const locationMap = {
   queueLimit: 1000,
@@ -18,6 +15,7 @@ const locationMap = {
   e: new Queue(this.queueLimit),
 };
 
+let isDisableKeepAlive = false;
 const { SERVER_NAME, SERVER_PID } = process.env;
 const serverNumber = SERVER_PID - 1;
 const serverName = SERVER_NAME + serverNumber;
@@ -29,7 +27,6 @@ process.on("message", ({ data }) => {
   if (target === "observer") {
     const { observer } = packet;
     users.set("admin", observer);
-
     if (
       spaces.checkChannelUserAmountByType(
         observer.space,
@@ -49,33 +46,43 @@ process.on("message", ({ data }) => {
   } else if (target === "open") {
     const { viewer } = packet;
 
-    users.set(String(viewer.deviceID), viewer);
-    // broker.emit(0, "subscribe", {
-    //   deviceID: viewer.deviceID,
-    //   channel: viewer.channel,
-    // });
+    const addedViewer = spaces.add(viewer);
+
+    broker.emit(0, "subscribe", {
+      topic: "",
+      content: {
+        deviceID: addedViewer.deviceID,
+        channel: addedViewer.deviceID,
+      },
+    });
+
+    users.set(String(addedViewer.deviceID), addedViewer);
+    broker.emit(0, "subscribe", {
+      deviceID: addedViewer.deviceID,
+      channel: addedViewer.channel,
+    });
 
     // 뷰어 데이터 전달
     broker.emit(0, "publish", {
-      topic: String(viewer.deviceID),
-      content: JSON.stringify(new Array(viewer)),
+      topic: String(addedViewer.deviceID),
+      content: JSON.stringify(new Array(addedViewer)),
     });
     // 로그인 시 플레이어 전달
     if (
       spaces.checkChannelUserAmountByType(
-        viewer.space,
-        viewer.channel,
+        addedViewer.space,
+        addedViewer.channel,
         "player"
       ) > 0
     ) {
       broker.emit(0, "publish", {
-        topic: String(viewer.deviceID),
+        topic: String(addedViewer.deviceID),
         content: JSON.stringify(
-          spaces.getPlayers(viewer.space, viewer.channel)
+          spaces.getPlayers(addedViewer.space, addedViewer.channel)
         ),
       });
     }
-    checkLog(viewer.server, viewer.space, viewer.channel);
+    checkLog(addedViewer.server, addedViewer.space, addedViewer.channel);
 
     // emitter.emit("check::user::amount", serverNumber + 1); // [ ]: broker로 변경해야 함
   } else if (target === "viewer") {
@@ -114,6 +121,7 @@ process.on("message", ({ data }) => {
   } else if (target === "location") {
     const { location } = packet;
     const { id, pox, poy, poz, roy } = location;
+
     const locationConverter = {
       deviceID: id,
       pox,
@@ -132,7 +140,6 @@ process.on("message", ({ data }) => {
       replacePlayer.channel,
       replacePlayer.deviceID
     );
-
     locationMap[replaceUser.space.toLowerCase()].enter(
       replaceUser.channel,
       new TextEncoder().encode(JSON.stringify(location))
@@ -140,7 +147,6 @@ process.on("message", ({ data }) => {
     );
   } else if (target === "close") {
     const { user } = packet;
-
     if (user.type === "observer") {
       // ...
     } else {
@@ -152,7 +158,8 @@ process.on("message", ({ data }) => {
       );
       const getUser = users.get(String(foundUser.deviceID));
       spaces.removeUser(getUser.space, getUser.channel, getUser.deviceID);
-      users.delete(ws);
+      users.delete(getUser.deviceID);
+
       broker.emit(0, "publish", {
         topic: `${serverName}/space${foundUser.space.toLowerCase()}/channel${
           foundUser.channel
@@ -162,36 +169,9 @@ process.on("message", ({ data }) => {
         ),
       });
     }
-    checkLog(foundUser.server, foundUser.space, foundUser.channel);
+    checkLog(user.server, user.space, user.channel);
   }
 });
-
-emitter.on(`${serverName}::open`, (app, ws, viewer) => {
-  // [x]: pm2 api로 업데이트 중
-});
-
-// NOTICE: Observer 추가 (원활한 테스트를 위함)
-emitter.on(`${serverName}::observer`, (app, ws, observer) => {
-  // [x]: pm2 api로 업데이트 중
-});
-
-emitter.on(`${serverName}::viewer`, (app, viewer) => {
-  // [x]: pm2 api로 업데이트 중
-});
-
-emitter.on(`${serverName}::login`, (app, player) => {
-  // [x]: pm2 api로 업데이트 중
-});
-
-emitter.on(`${serverName}::location`, (app, location, message) => {
-  // [x]: pm2 api로 업데이트 중
-});
-
-emitter.on(`${serverName}::close`, (app, ws, user) => {
-  // [x]: pm2 api로 업데이트 중
-});
-
-process.send("ready");
 
 /**
  * 로케이션 데이터 브로드캐스트
@@ -209,12 +189,14 @@ function locationBroadcastToChannel(sp) {
     for (let channel of spaces.selectSpace(sp).keys()) {
       if (locationMap[sp].size(channel) > 0) {
         const queue = locationMap[sp].get(channel);
-
-        tryPublish(
-          `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
-          queue,
-          true
-        );
+        const array = new TextDecoder().decode(queue).match(/\{(.+?)\}/g);
+        array.forEach((item) => {
+          tryPublish(
+            `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
+            new TextEncoder().encode(item),
+            true
+          );
+        });
       }
     }
   }
@@ -276,14 +258,19 @@ function tryPublish(target, data, isLocation = false) {
       content: new TextDecoder().decode(data),
       zip: isLocation,
     });
-    // if (isLocation) {
-    //   // getApp().publish(target, data, true, true);
-    // } else {
-    //   // getApp().publish(target, data);
-    // }
   } catch (e) {
     // console.log(e);
   }
 }
+
+/**
+ * 프로세스 죽었을 때 SIGINT 이벤트 전달
+ */
+process.on("SIGINT", function () {
+  isDisableKeepAlive = true;
+  app.close(function () {
+    process.exit(0);
+  });
+});
 
 export { users, spaces };

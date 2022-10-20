@@ -1,11 +1,9 @@
-import { getApp } from "../app.js";
-import { emitter } from "../src/emitter/index.js";
 import Queue from "../src/models/Queue.js";
 import { spaces } from "./server.js";
 
 const { SERVER_NAME } = process.env;
 const serverName = SERVER_NAME;
-let publishTarget = null;
+let isDisableKeepAlive = false;
 const locationMap = {
   queueLimit: 1000,
   a: new Queue(this.queueLimit),
@@ -61,5 +59,15 @@ function tryPublish(app, target, data, isLocation = false) {
     // console.log(e);
   }
 }
+
+/**
+ * 프로세스 죽었을 때 SIGINT 이벤트 전달
+ */
+process.on("SIGINT", function () {
+  isDisableKeepAlive = true;
+  app.close(function () {
+    process.exit(0);
+  });
+});
 
 process.send("ready");

@@ -40,16 +40,16 @@ describe("서버 할당 테스트", () => {
     servers.clearAll();
   });
   test("서버 302명 추가 시 서버 사이즈 체크", () => {
-    const users = new Array(300 * 10)
+    const users = new Array(302)
       .fill(0)
       .map((a, i) => new User(i + 1, "Doe" + (i + 1)));
     users.forEach((user) => {
       servers.in(user);
     });
-    expect(servers.size(1)).toEqual(300);
-    expect(servers.findHoleServer()).toEqual(2);
     expect(servers.size(2)).toEqual(2);
-    expect(servers.serverSize()).toEqual(10);
+    expect(servers.findHoleServer()).toEqual(2);
+    // expect(servers.size(2)).toEqual(2);
+    // expect(servers.serverSize()).toEqual(10);
     servers.clearAll();
   });
 });
