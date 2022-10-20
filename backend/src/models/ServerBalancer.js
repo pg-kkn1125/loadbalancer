@@ -44,15 +44,14 @@ class ServerBalancer {
     return isStable;
   }
 
-  in(ws, initialNum) {
-    this.#currentServer = initialNum;
+  in(ws) {
     const isStable = this.checkLimit(this.#currentServer);
     this.#logable &&
       dev.log(
         "ServerBalancer.in::",
         this.#currentServer,
-        ws.params.space,
-        ws.params.channel,
+        ws.params.sp,
+        ws.params.ch,
         isStable
       );
     if (this.#currentServer === 0) {
@@ -75,8 +74,8 @@ class ServerBalancer {
       dev.log(
         "ServerBalancer.out::",
         server,
-        ws.params.space,
-        ws.params.channel,
+        ws.params.sp,
+        ws.params.ch,
         index
       );
     if (index !== -1) {
@@ -90,8 +89,8 @@ class ServerBalancer {
       dev.log(
         "ServerBalancer.findIndex::",
         server,
-        ws.params.space,
-        ws.params.channel,
+        ws.params.sp,
+        ws.params.ch,
         index
       );
     return index;
@@ -144,7 +143,7 @@ class ServerBalancer {
   }
 }
 
-const servers = new ServerBalancer(300, 10);
+// const servers = new ServerBalancer(300, 10);
 
 export default ServerBalancer;
-export { servers };
+// export { servers };
