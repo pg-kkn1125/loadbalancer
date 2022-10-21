@@ -48,7 +48,7 @@ const chat = {
 /**
  * 서버 세팅
  */
-const SERVER_MAX_AMOUNT = 2;
+const SERVER_MAX_AMOUNT = 1;
 const server = {
   name: `server`,
   script: `./workers/server.js`,

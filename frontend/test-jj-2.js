@@ -24,7 +24,7 @@ var good = false;
 var isPlayerSend = false;
 const TRY = process.env.TRY || 0;
 let MIN = 2;
-let AMOUNT = 49;
+let AMOUNT = 300;
 let MAX = (() => AMOUNT + MIN)();
 const HOST = "localhost";
 
@@ -82,40 +82,19 @@ function example() {
   } catch (err) {
     console.log(err, 2);
   } finally {
-    // setTimeout(() => {
-    //   for (let i = MIN; i < MAX; i++) {
-    //     playFunction(i);
-    //   }
-    // }, 2000);
+    setTimeout(() => {
+      for (let i = MIN; i < MAX; i++) {
+        playFunction(i);
+      }
+    }, 2000);
 
-    //     sockets.get(3).onmessage = (message) => {
-    //         console.log(message.data);
-    //         if (isPlayerSend === false) {
-    //             if (typeof message.data === "string") {
-    //                 let newData = JSON.parse(message.data);
-    //                 if (Object.values(newData)[0] !== undefined) {
-    //                     var newType = Object.values(newData)[0];
-    //                     if (newType.deviceID === 4) {
-    //                         for (let i = 3; i < 4; i++) {
-    //                             playFunction(i);
-    //                             isPlayerSend = true;
-    //                         }
-    //                     } else {
-    //                         return;
-    //                     }
-    //                 }
-    //             } else {
-    //                 //console.log("good");
-    //             }
-    //         }
-    //     };
-    // setTimeout(() => {
-    //   setInterval(() => {
-    //     for (let i = MIN; i < MAX; i++) {
-    //       locationFunction(i);
-    //     }
-    //   }, 16);
-    // }, 7000);
+    setTimeout(() => {
+      setInterval(() => {
+        for (let i = MIN; i < MAX; i++) {
+          locationFunction(i);
+        }
+      }, 16);
+    }, 7000);
   }
 }
 example();

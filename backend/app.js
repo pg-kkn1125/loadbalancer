@@ -139,9 +139,9 @@ function openHandler(ws) {
       observer: observer,
     });
   } else {
-    const [isStable, allocateServerNumber] = servers.in(ws);
-    // [ ]: 서버 값 여기서 ws에 할당
-    currentServer = allocateServerNumber;
+    // [x]: 서버 번호 여기서 할당
+    // const [isStable, allocateServerNumber] = servers.in(ws);
+    currentServer = 1; // NOTICE: 임시로 1로 고정했습니다. origin: allocateServerNumber
     ws.server = currentServer;
     deviceID++;
 
