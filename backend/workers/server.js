@@ -5,6 +5,10 @@ import Queue from "../src/models/Queue.js";
 import app, { spaces } from "../src/models/Socket.js";
 import protobuf from "protobufjs";
 
+const { SERVER_NAME, SERVER_PID } = process.env;
+const serverNumber = SERVER_PID;
+const serverName = SERVER_NAME + (serverNumber - 1);
+
 // ---------- protobuf js ------------
 var Type = protobuf.Type,
   Field = protobuf.Field;
@@ -30,13 +34,78 @@ const locationMap = {
 };
 
 process.on("message", ({ data }) => {
-  const { target, packet, space, message } = data;
-  console.log(data);
-  if (space && message) {
-    locationMap[space].enter(message);
-  } else if (target) {
-    app.publish(target, packet);
+  const { target, topic, user, users, space, channel, message } = data;
+  if (target === "observer") {
+    app.publish(topic, JSON.stringify(user));
+
+    if (
+      spaces.checkChannelUserAmountByType(user.space, user.channel, "player") >
+      0
+    ) {
+      sendToProcess(topic, {
+        packet: JSON.stringify(spaces.getPlayers(user.space, user.channel)),
+      });
+    }
+  } else if (target === "open") {
+    const newUser = spaces.add(user);
+    app.publish(topic, JSON.stringify(new Array(newUser)));
+
+    if (
+      spaces.checkChannelUserAmountByType(
+        newUser.space,
+        newUser.channel,
+        "player"
+      ) > 0
+    ) {
+      sendToProcess(topic, {
+        packet: JSON.stringify(
+          spaces.getPlayers(newUser.space, newUser.channel)
+        ),
+      });
+    }
+  } else if (target === "viewer") {
+    console.log(user);
+    const newUser = spaces.overrideUser(user);
+    app.publish(topic, JSON.stringify(newUser));
+  } else if (target === "player") {
+    const newUser = spaces.add(user);
+    app.publish(topic, JSON.stringify(newUser));
+    if (
+      spaces.checkChannelUserAmountByType(
+        newUser.space,
+        newUser.channel,
+        "player"
+      ) > 0
+    ) {
+      app.publish(
+        topic,
+        JSON.stringify(spaces.getPlayers(newUser.space, newUser.channel))
+      );
+    }
+  } else if (target === "location") {
+    locationMap[space.toLowerCase()].enter(
+      channel,
+      ProtoBuf2.encode(new ProtoBuf2(message)).finish()
+    );
+  } else if (target === "close") {
+    if (user.deviceID === "admin") return;
+    console.log(user);
+    const newUser = spaces.removeUser(user.space, user.channel, user.deviceID);
+    app.publish(
+      topic,
+      JSON.stringify(spaces.getPlayers(newUser.space, newUser.channel))
+    );
   }
+
+  // const { target, packet, space, channel, message } = data;
+  // if (space && message) {
+  //   locationMap[space.toLowerCase()].enter(
+  //     channel,
+  //     ProtoBuf2.encode(new ProtoBuf2(message)).finish()
+  //   );
+  // } else if (target) {
+  //   app.publish(target, packet);
+  // }
   // const {location} = data;
   // console.log(data)
 });
@@ -58,13 +127,13 @@ function locationBroadcastToChannel(sp) {
       if (locationMap[sp].size(channel) > 0) {
         const queue = locationMap[sp].get(channel);
         // const parsing = JSON.parse(queue);
-        const queues = ProtoBuf2.encode(
-          new ProtoBuf2(JSON.parse(new TextDecoder().decode(message)))
-        ).finish();
+        // const queues = ProtoBuf2.encode(
+        //   new ProtoBuf2(JSON.parse(new TextDecoder().decode(message)))
+        // ).finish();
         // 데이터 보존을 위해 텍스트로 받음
         tryPublish(
           `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
-          queues,
+          queue,
           true
         );
       }

@@ -29,8 +29,10 @@
 //     }
 //   }
 // });
-
+import { servers } from "./src/models/ServerBalancer";
 import app from "./src/models/Socket";
+
+const currentServer = servers.findHoleServer();
 
 /* PORT === 서버 포트 */
 const PORT = process.env.NODE_ENV === "development" ? 4000 : 3000;

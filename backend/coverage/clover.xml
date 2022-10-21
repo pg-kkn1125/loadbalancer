@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1666261624624" clover="3.2.0">
-  <project timestamp="1666261624625" name="All files">
-    <metrics statements="193" coveredstatements="144" conditionals="94" coveredconditionals="54" methods="54" coveredmethods="28" elements="341" coveredelements="226" complexity="0" loc="193" ncloc="193" packages="1" files="4" classes="4"/>
+<coverage generated="1666321061651" clover="3.2.0">
+  <project timestamp="1666321061651" name="All files">
+    <metrics statements="192" coveredstatements="143" conditionals="94" coveredconditionals="54" methods="54" coveredmethods="28" elements="340" coveredelements="225" complexity="0" loc="192" ncloc="192" packages="1" files="4" classes="4"/>
     <file name="DevConsole.js" path="C:\kkn_folder\project\yegan\try\try7\backend\src\models\DevConsole.js">
       <metrics statements="11" coveredstatements="3" conditionals="10" coveredconditionals="1" methods="8" coveredmethods="1"/>
       <line num="2" count="1" type="stmt"/>
       <line num="4" count="0" type="stmt"/>
       <line num="5" count="0" type="cond" truecount="0" falsecount="2"/>
       <line num="8" count="0" type="stmt"/>
-      <line num="11" count="6" type="cond" truecount="1" falsecount="1"/>
+      <line num="11" count="5" type="cond" truecount="1" falsecount="1"/>
       <line num="14" count="0" type="cond" truecount="0" falsecount="2"/>
       <line num="17" count="0" type="cond" truecount="0" falsecount="2"/>
       <line num="20" count="0" type="cond" truecount="0" falsecount="2"/>
@@ -17,21 +17,21 @@
       <line num="30" count="1" type="stmt"/>
     </file>
     <file name="ServerBalancer.js" path="C:\kkn_folder\project\yegan\try\try7\backend\src\models\ServerBalancer.js">
-      <metrics statements="56" coveredstatements="41" conditionals="24" coveredconditionals="10" methods="17" coveredmethods="10"/>
-      <line num="4" count="2" type="stmt"/>
-      <line num="5" count="2" type="stmt"/>
-      <line num="6" count="2" type="stmt"/>
-      <line num="7" count="2" type="stmt"/>
-      <line num="8" count="2" type="stmt"/>
-      <line num="11" count="2" type="cond" truecount="1" falsecount="1"/>
-      <line num="12" count="2" type="stmt"/>
-      <line num="14" count="2" type="stmt"/>
-      <line num="18" count="5" type="cond" truecount="1" falsecount="1"/>
-      <line num="19" count="5" type="cond" truecount="1" falsecount="1"/>
-      <line num="20" count="5" type="stmt"/>
-      <line num="21" count="5" type="stmt"/>
-      <line num="22" count="50" type="stmt"/>
-      <line num="24" count="5" type="stmt"/>
+      <metrics statements="55" coveredstatements="40" conditionals="24" coveredconditionals="10" methods="17" coveredmethods="10"/>
+      <line num="4" count="1" type="stmt"/>
+      <line num="5" count="1" type="stmt"/>
+      <line num="6" count="1" type="stmt"/>
+      <line num="7" count="1" type="stmt"/>
+      <line num="8" count="1" type="stmt"/>
+      <line num="11" count="1" type="cond" truecount="1" falsecount="1"/>
+      <line num="12" count="1" type="stmt"/>
+      <line num="14" count="1" type="stmt"/>
+      <line num="18" count="4" type="cond" truecount="1" falsecount="1"/>
+      <line num="19" count="4" type="cond" truecount="1" falsecount="1"/>
+      <line num="20" count="4" type="stmt"/>
+      <line num="21" count="4" type="stmt"/>
+      <line num="22" count="40" type="stmt"/>
+      <line num="24" count="4" type="stmt"/>
       <line num="28" count="1" type="stmt"/>
       <line num="32" count="0" type="stmt"/>
       <line num="36" count="1212" type="stmt"/>
@@ -73,7 +73,6 @@
       <line num="137" count="3" type="stmt"/>
       <line num="141" count="0" type="stmt"/>
       <line num="142" count="0" type="stmt"/>
-      <line num="146" count="1" type="stmt"/>
     </file>
     <file name="SpaceBalancer.js" path="C:\kkn_folder\project\yegan\try\try7\backend\src\models\SpaceBalancer.js">
       <metrics statements="73" coveredstatements="47" conditionals="22" coveredconditionals="16" methods="26" coveredmethods="14"/>

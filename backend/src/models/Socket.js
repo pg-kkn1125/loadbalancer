@@ -4,8 +4,7 @@
 import pm2 from "pm2";
 import protobuf from "protobufjs";
 import uWs from "uWebSockets.js";
-// import Queue from "../src/models/Queue.js";
-import ServerBalancer from "./ServerBalancer.js";
+import { servers } from "./ServerBalancer.js";
 import SpaceBalancer from "./SpaceBalancer.js";
 import User from "./User.js";
 
@@ -43,20 +42,33 @@ const serverName = SERVER_NAME + serverNumber;
 const sockets = new Map();
 const users = new Map();
 const spaces = new SpaceBalancer(50);
-const servers = new ServerBalancer(300, 10);
 let isDisableKeepAlive = false;
 let deviceID = 0;
-let currentServer = 1;
+let currentServer = 2;
 let sp = "a"; // 공간은 URL 배정 받음
 let targetServerName = (num) => "server" + num;
 
-// process.on("message", () => {
-//   console.log(serverName);
-// });
+pm2.list((err, list) => {
+  list.forEach((process) => {
+    pm2.sendDataToProcessId(
+      process.pm_id,
+      {
+        topic: true,
+        data: {
+          success: true,
+        },
+        type: "process:msg",
+      },
+      (err) => {
+        //
+      }
+    );
+  });
+});
 
 function sendToProcess(target, data) {
   pm2.sendDataToProcessId(
-    currentServer + 1,
+    currentServer,
     {
       topic: true,
       type: "process:msg",
@@ -135,13 +147,6 @@ function upgradeHandler(res, req, context) {
 }
 
 function openHandler(ws) {
-  // console.log(ws)
-
-  // if (spaces.checkThreadUserAmount() === 300) {
-  //   console.log("연결 끊고 다음 서버에 연결");
-  //   // ws.end();
-  // }
-
   const { url, params, space, href, host } = ws;
 
   if (!Boolean(params.sp)) {
@@ -152,39 +157,48 @@ function openHandler(ws) {
     let user = {
       type: "observer",
       id: "admin",
+      deviceID: "admin",
       server: Number(params.sv),
       space: params.sp,
       channel: Number(params.ch),
     };
+    ws.server = params.sv;
+    currentServer = Number(ws.server);
 
     ws.subscribe("server");
     ws.subscribe("server" + user.server);
-    ws.subscribe("admin");
+    ws.subscribe(user.deviceID);
     ws.subscribe(
       `${targetServerName(
         user.server
       )}/space${user.space.toLowerCase()}/channel${user.channel}`
     );
 
-    sockets.set("admin", ws);
+    sockets.set(user.deviceID, ws);
     users.set(ws, user);
 
-    if (
-      spaces.checkChannelUserAmountByType(user.space, user.channel, "player") >
-      0
-    ) {
-      sendToProcess("admin", {
-        packet: JSON.stringify(spaces.getPlayers(user.space, user.channel)),
-      });
-      // app.publish(
-      //   "admin",
-      //   JSON.stringify(spaces.getPlayers(user.space, user.channel))
-      // );
-    }
+    sendToProcess("observer", {
+      topic: user.deviceID,
+      user: user,
+    });
+
+    // sendToProcess("admin", {
+    //   packet: JSON.stringify(new Array(user)),
+    // });
+
+    // if (
+    //   spaces.checkChannelUserAmountByType(user.space, user.channel, "player") >
+    //   0
+    // ) {
+    //   sendToProcess("admin", {
+    //     packet: JSON.stringify(spaces.getPlayers(user.space, user.channel)),
+    //   });
+    // }
   } else {
     const [isStable, allocateServerNumber] = servers.in(ws);
     // [ ]: 서버 값 여기서 ws에 할당
     ws.server = allocateServerNumber;
+    currentServer = Number(ws.server);
     deviceID++;
 
     let user = new User({
@@ -204,65 +218,36 @@ function openHandler(ws) {
     sp = params.sp;
 
     const renewViewer = spaces.add(user);
-    console.log(user);
     /**
      * 전체 서버 구독
      */
     ws.subscribe("server");
     ws.subscribe("server" + allocateServerNumber);
-    ws.subscribe(String(deviceID));
+    ws.subscribe(String(renewViewer.deviceID));
     ws.subscribe(
       `${targetServerName(
         allocateServerNumber
       )}/space${renewViewer.space.toLowerCase()}/channel${renewViewer.channel}`
     );
 
-    sockets.set(String(deviceID), ws);
+    sockets.set(String(renewViewer.deviceID), ws);
     users.set(ws, renewViewer);
 
-    sendToProcess(String(user.deviceID), {
-      packet: JSON.stringify(new Array(users.get(ws))),
+    sendToProcess("open", {
+      topic: String(renewViewer.deviceID),
+      user: renewViewer,
     });
-    // pm2.sendDataToProcessId(
-    //   currentServer + 1,
-    //   {
-    //     topic: true,
-    //     type: "process:msg",
-    //     data: {
-    //       target: String(user.deviceID),
-    //       packet: JSON.stringify(new Array(users.get(ws))),
-    //     },
-    //   },
-    //   (err) => {}
-    // );
-    // app.publish(
-    //   String(user.deviceID),
-    //   JSON.stringify(new Array(users.get(ws)))
-    // );
-    if (
-      spaces.checkChannelUserAmountByType(user.space, user.channel, "player") >
-      0
-    ) {
-      sendToProcess(String(user.deviceID), {
-        packet: JSON.stringify(spaces.getPlayers(user.space, user.channel)),
-      });
-      // pm2.sendDataToProcessId(
-      //   currentServer + 1,
-      //   {
-      //     topic: true,
-      //     type: "process:msg",
-      //     data: {
-      //       target: String(user.deviceID),
-      //       packet: JSON.stringify(spaces.getPlayers(user.space, user.channel)),
-      //     },
-      //   },
-      //   (err) => {}
-      // );
-      // app.publish(
-      //   String(user.deviceID),
-      //   JSON.stringify(spaces.getPlayers(user.space, user.channel))
-      // );
-    }
+    // sendToProcess(String(renewViewer.deviceID), {
+    //   packet: JSON.stringify(new Array(renewViewer)),
+    // });
+    // if (
+    //   spaces.checkChannelUserAmountByType(user.space, user.channel, "player") >
+    //   0
+    // ) {
+    //   sendToProcess(String(user.deviceID), {
+    //     packet: JSON.stringify(spaces.getPlayers(user.space, user.channel)),
+    //   });
+    // }
   }
   checkLog(users.get(ws).server, users.get(ws).space, users.get(ws).channel);
 }
@@ -285,32 +270,20 @@ function messageHandler(ws, message, isBinary) {
     };
 
     users.set(ws, Object.assign(users.get(ws), location));
-    spaces.overrideUser(users.get(ws));
+    // spaces.overrideUser(users.get(ws));
 
     if (ws.observe) return;
-
-    sendToProcess(String(users.get(ws).channel), {
+    sendToProcess("location", {
+      topic: String(users.get(ws).channel),
       space: users.get(ws).space,
-      message: messageStrings,
+      channel: users.get(ws).channel,
+      message: messageObject,
     });
-    // pm2.sendDataToProcessId(
-    //   currentServer + 1,
-    //   {
-    //     topic: true,
-    //     type: "process:msg",
-    //     data: {
-    //       target: String(users.get(ws).channel),
-    //       message: message,
-    //     },
-    //   },
-    //   (err) => {}
-    // );
-
-    // locationMap[users.get(ws).space.toLowerCase()].enter(
-    //   String(users.get(ws).channel),
-    //   message
-    //   // 데이터 보존을 위해 텍스트로 인코딩
-    // );
+    // sendToProcess(String(users.get(ws).channel), {
+    //   space: users.get(ws).space,
+    //   channel: users.get(ws).channel,
+    //   message: messageObject,
+    // });
   } else {
     if (ws.observe) return;
     // 로그인 데이터 받음
@@ -323,69 +296,66 @@ function messageHandler(ws, message, isBinary) {
       const overrideUserData = Object.assign(users.get(ws), data);
       users.set(ws, overrideUserData);
       try {
-        sendToProcess(
-          `${targetServerName(
-            users.get(ws).server
-          )}/space${overrideUserData.space.toLowerCase()}/channel${
-            overrideUserData.channel
-          }`,
-          {
-            packet: JSON.stringify(
-              spaces.getPlayers(
-                overrideUserData.space,
-                overrideUserData.channel
-              )
-            ),
-          }
-        );
-        // app.publish(
+        // sendToProcess("player", {
+        //   topic: `${targetServerName(
+        //     users.get(ws).server
+        //   )}/space${overrideUserData.space.toLowerCase()}/channel${
+        //     overrideUserData.channel
+        //   }`,
+        //   user: JSON.stringify(
+        //     spaces.getPlayers(overrideUserData.space, overrideUserData.channel)
+        //   ),
+        // });
+        sendToProcess("player", {
+          topic: String(overrideUserData.deviceID),
+          user: JSON.stringify(overrideUserData),
+        });
+        // sendToProcess(
         //   `${targetServerName(
         //     users.get(ws).server
         //   )}/space${overrideUserData.space.toLowerCase()}/channel${
         //     overrideUserData.channel
         //   }`,
-        //   JSON.stringify(
-        //     spaces.getPlayers(overrideUserData.space, overrideUserData.channel)
-        //   )
+        //   {
+        //     packet: JSON.stringify(
+        //       spaces.getPlayers(
+        //         overrideUserData.space,
+        //         overrideUserData.channel
+        //       )
+        //     ),
+        //   }
         // );
-        sendToProcess(String(overrideUserData.deviceID), {
-          packet: JSON.stringify(new Array(overrideUserData)),
-        });
-        // app.publish(
-        //   String(overrideUserData.deviceID),
-        //   JSON.stringify(overrideUserData)
-        // );
+        // sendToProcess(String(overrideUserData.deviceID), {
+        //   packet: JSON.stringify(overrideUserData),
+        // });
       } catch (e) {}
     } else if (data.type === "viewer") {
       // 뷰어 데이터 덮어쓰기
       const overrideUserData = Object.assign(users.get(ws), data);
       users.set(ws, overrideUserData);
       try {
-        sendToProcess(
-          `${targetServerName(
+        sendToProcess("viewer", {
+          topic: `${targetServerName(
             users.get(ws).server
           )}/space${overrideUserData.space.toLowerCase()}/channel${
             overrideUserData.channel
           }`,
-          {
-            packet: JSON.stringify(new Array(overrideUserData)),
-          }
-        );
-        // app.publish(
+          user: JSON.stringify(overrideUserData),
+        });
+        // sendToProcess(
         //   `${targetServerName(
         //     users.get(ws).server
         //   )}/space${overrideUserData.space.toLowerCase()}/channel${
         //     overrideUserData.channel
         //   }`,
-        //   JSON.stringify(overrideUserData)
+        //   {
+        //     packet: JSON.stringify(overrideUserData),
+        //   }
         // );
       } catch (e) {}
     } else if (data.type === "chat") {
       try {
-        // broker.emit(ws.server + 1, "chat", {
-        //   data,
-        //   message,
-        // });
+        //
       } catch (e) {}
     }
   }
@@ -402,61 +372,24 @@ function closeHandler(ws, code, message) {
   }
 
   const user = users.get(ws);
-  spaces.removeUser(user.space, user.channel, user.deviceID);
+  // spaces.removeUser(user.space, user.channel, user.deviceID);
   try {
-    sendToProcess(
-      `${targetServerName(
+    sendToProcess("close", {
+      topic: `${targetServerName(
         users.get(ws).server
       )}/space${user.space.toLowerCase()}/channel${user.channel}`,
-      { packet: JSON.stringify(spaces.getPlayers(user.space, user.channel)) }
-    );
-    // app.publish(
+      user: user,
+    });
+    // sendToProcess(
     //   `${targetServerName(
     //     users.get(ws).server
     //   )}/space${user.space.toLowerCase()}/channel${user.channel}`,
-    //   JSON.stringify(spaces.getPlayers(user.space, user.channel))
+    //   { packet: JSON.stringify(spaces.getPlayers(user.space, user.channel)) }
     // );
   } catch (e) {
     console.log(123, e);
   }
 }
-
-// const locationMap = {
-//   queueLimit: 1000,
-//   a: new Queue(this.queueLimit),
-//   b: new Queue(this.queueLimit),
-//   c: new Queue(this.queueLimit),
-//   d: new Queue(this.queueLimit),
-//   e: new Queue(this.queueLimit),
-// };
-
-// /**
-//  * 로케이션 데이터 브로드캐스트
-//  */
-// setInterval(() => {
-//   locationBroadcastToChannel("a");
-//   locationBroadcastToChannel("b");
-//   locationBroadcastToChannel("c");
-//   locationBroadcastToChannel("d");
-//   locationBroadcastToChannel("e");
-// }, 8);
-
-// function locationBroadcastToChannel(sp) {
-//   if (spaces.selectSpace(sp)) {
-//     for (let channel of spaces.selectSpace(sp).keys()) {
-//       if (locationMap[sp].size(channel) > 0) {
-//         const queue = locationMap[sp].get(channel);
-//         // const parsing = JSON.parse(queue);
-//         // 데이터 보존을 위해 텍스트로 받음
-//         tryPublish(
-//           `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
-//           queue,
-//           true
-//         );
-//       }
-//     }
-//   }
-// }
 
 /**
  * 채널 현황 로그
@@ -505,19 +438,6 @@ function checkLog(sv, sp, ch, disable = false) {
       .padStart(3, " ")} 명`.padStart(22, " ")
   );
 }
-
-// function tryPublish(target, data, isLocation = false) {
-//   try {
-//     // 데이터 보존을 위해 텍스트 디코드로 송출
-//     if (isLocation) {
-//       app.publish(target, data, true, true);
-//     } else {
-//       app.publish(target, data);
-//     }
-//   } catch (e) {
-//     console.log(e);
-//   }
-// }
 
 /**
  * 프로세스 죽었을 때 SIGINT 이벤트 전달
