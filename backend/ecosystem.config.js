@@ -3,20 +3,18 @@ const pm2 = require("pm2");
 /**
  * 공통 속성
  */
-const envOptions = {
-  env: {
-    // 실행 시 환경 변수 설정
-    HOST: "localhost",
-    PORT: 4000,
-  },
-  env_production: {
-    // 개발 환경별 환경 변수 설정
-    NODE_ENV: "production",
-  },
-  env_development: {
-    // 개발 환경별 환경 변수 설정
-    NODE_ENV: "development",
-  },
+const env = {
+  // 실행 시 환경 변수 설정
+  HOST: "localhost",
+  PORT: 4000,
+};
+const env_production = {
+  // 개발 환경별 환경 변수 설정
+  NODE_ENV: "production",
+};
+const env_development = {
+  // 개발 환경별 환경 변수 설정
+  NODE_ENV: "development",
 };
 const watchOptions = {
   watch: true, // watch 여부
@@ -29,6 +27,8 @@ const statusOptions = {
   // wait_ready: true, // 마스터 프로세스에게 ready 이벤트를 기다리라는 의미
   // listen_timeout: 50000, // ready 이벤트를 기다릴 시간값(ms)을 의미
   // kill_timeout: 5000, // 새로운 요청을 더 이상 받지 않고 연결되어 있는 요청이 완료된 후 해당 프로세스를 강제로 종료하도록 처리
+  listen_timeout: 50000, // 앱 실행 신호까지 기다릴 최대 시간. ms 단위.
+  kill_timeout: 5000, // 새로운 프로세스 실행이 완료된 후 예전 프로세스를 교체하기까지 기다릴 시간
 };
 
 /**
@@ -40,14 +40,9 @@ const chat = {
   watch: ["./workers"],
   node_args: "-r esm",
   instances: 1,
-  ...{
-    ...Object.assign(envOptions, {
-      env: {
-        ...envOptions.env,
-        SERVER_NAME: `server`,
-      },
-    }),
-  },
+  env: { ...env, SERVER_NAME: `chat` },
+  env_production,
+  env_development,
   ...watchOptions,
   ...statusOptions,
 };
@@ -55,7 +50,7 @@ const chat = {
 /**
  * 서버 세팅
  */
-const SERVER_MAX_AMOUNT = 10;
+const SERVER_MAX_AMOUNT = 1;
 const server = {
   name: `server`,
   script: `./workers/server.js`,
@@ -64,15 +59,9 @@ const server = {
   wait_ready: true,
   instances: SERVER_MAX_AMOUNT,
   increment_var: "SERVER_PID",
-  ...{
-    ...Object.assign(envOptions, {
-      env: {
-        ...envOptions.env,
-        SERVER_NAME: `server`,
-        SERVER_PID: 2,
-      },
-    }),
-  },
+  env: { ...env, SERVER_NAME: `server`, SERVER_PID: 1 },
+  env_production,
+  env_development,
   ...watchOptions,
   ...statusOptions,
 };
@@ -96,7 +85,9 @@ const receive = {
   wait_ready: true,
   restart_delay: 1000,
   instances: 1,
-  ...envOptions,
+  env: { ...env, SERVER_NAME: `receive`, SERVER_AMOUNT: SERVER_MAX_AMOUNT },
+  env_production,
+  env_development,
   ...watchOptions,
   ...statusOptions,
 };
@@ -151,7 +142,7 @@ const production = {
 // }
 
 module.exports = {
-  apps: [receive, chat, server],
+  apps: [receive, /* chat, */ server],
   deploy: {
     production: production,
   },

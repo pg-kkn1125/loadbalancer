@@ -24,7 +24,7 @@ var good = false;
 var isPlayerSend = false;
 const TRY = process.env.TRY || 0;
 let MIN = 2;
-let AMOUNT = 49;
+let AMOUNT = 300;
 let MAX = (() => AMOUNT + MIN)();
 const HOST = "localhost";
 

@@ -1,10 +1,9 @@
 /**
  * app을 가져와야 emitter가 연동 됨
  */
-import { app } from "../app.js";
+import { getApp } from "../app.js";
 import Queue from "../src/models/Queue.js";
 import SpaceBalancer from "../src/models/SpaceBalancer.js";
-import pm2 from "pm2";
 import { emitter } from "../src/emitter/index.js";
 
 const locationMap = {
@@ -17,7 +16,7 @@ const locationMap = {
 };
 
 const { SERVER_NAME, SERVER_PID } = process.env;
-const serverName = SERVER_NAME + (SERVER_PID - 1);
+const serverName = SERVER_NAME + SERVER_PID;
 const users = new Map();
 const spaces = new SpaceBalancer(50);
 
@@ -50,7 +49,7 @@ emitter.on(`${serverName}::open`, (app, ws, viewer) => {
   }
   checkLog(renewViewer.space, renewViewer.channel);
 
-  emitter.emit("check::user::amount", serverNumber + 1);
+  // emitter.emit("check::user::amount", SERVER_PID - 1);
 });
 
 // NOTICE: viewer data 보류
@@ -132,8 +131,6 @@ emitter.on(`${serverName}::close`, (app, user) => {
   checkLog(foundUser.space, foundUser.channel);
 });
 
-process.send("ready");
-
 /**
  * 로케이션 데이터 브로드캐스트
  */
@@ -151,7 +148,7 @@ function locationBroadcastToChannel(sp) {
       if (locationMap[sp].size(channel) > 0) {
         const queue = locationMap[sp].get(channel);
         tryPublish(
-          app,
+          getApp(),
           `${serverName}/space${sp.toLowerCase()}/channel${channel}`,
           queue,
           true
@@ -219,5 +216,6 @@ function tryPublish(app, target, data, isLocation = false) {
     // console.log(e);
   }
 }
+process.send("ready");
 
 export { users, spaces };

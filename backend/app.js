@@ -45,6 +45,7 @@ const app = uWs
     console.log(`listening on ws://locahost:${PORT}`);
     if (listenSocket) {
       console.log(`${PORT}번 포트 열었음`);
+      process.send("ready");
     }
   });
 
@@ -184,6 +185,8 @@ process.on("SIGINT", function () {
   });
 });
 
-process.send("ready");
+function getApp() {
+  return app;
+}
 
-export { app };
+export { getApp };
