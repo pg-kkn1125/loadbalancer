@@ -1,4 +1,4 @@
-const pm2 = require("pm2");
+// const pm2 = require("pm2");
 
 /**
  * 공통 속성
@@ -23,39 +23,24 @@ const watchOptions = {
   ignore_watch: ["node_modules", "coverage", "*.test.js"], // watch 제외 대상
 };
 const statusOptions = {
-  max_memory_restart: "300M", // process memory가 300mb에 도달하면 reload 실행
+  // max_memory_restart: "300M", // process memory가 300mb에 도달하면 reload 실행
   // wait_ready: true, // 마스터 프로세스에게 ready 이벤트를 기다리라는 의미
   // listen_timeout: 50000, // ready 이벤트를 기다릴 시간값(ms)을 의미
   // kill_timeout: 5000, // 새로운 요청을 더 이상 받지 않고 연결되어 있는 요청이 완료된 후 해당 프로세스를 강제로 종료하도록 처리
 };
 
-/**
- * 채팅서버 세팅
- */
-const chat = {
-  name: "chat",
-  script: "./workers/chat.js",
-  node_args: "-r esm",
-  instances: 1,
-  env: { ...env, SERVER_NAME: `chat` },
-  env_production,
-  env_development,
-  ...watchOptions,
-  ...statusOptions,
-};
 
 /**
  * 서버 세팅
  */
-const SERVER_MAX_AMOUNT = 2;
+const SERVER_MAX_AMOUNT = 12;
 const server = {
   name: `server`,
-  script: `./workers/server.js`,
-  node_args: "-r esm",
+  script: `./app.js`,
   wait_ready: true,
   instances: SERVER_MAX_AMOUNT,
-  increment_var: "SERVER_PID",
-  env: { ...env, SERVER_NAME: `server`, SERVER_PID: 2 },
+  increment_var: "PORT",
+  env: { ...env, SERVER_NAME: `server` },
   env_production,
   env_development,
   ...watchOptions,
@@ -70,22 +55,7 @@ const server = {
 //     pm2.start(server, controlFn(server.name));
 //   });
 
-/**
- * 리시브 서버 세팅
- */
-const receive = {
-  name: "app", // 앱 이름
-  script: "./app.js",
-  node_args: "-r esm",
-  wait_ready: true,
-  restart_delay: 1000,
-  instances: 1,
-  env: { ...env, SERVER_NAME: `receive`, SERVER_AMOUNT: SERVER_MAX_AMOUNT },
-  env_production,
-  env_development,
-  ...watchOptions,
-  ...statusOptions,
-};
+
 
 /**
  * 프로덕션 옵션 세팅
@@ -102,42 +72,9 @@ const production = {
   "pre-setup": "",
 };
 
-// pm2.connect(function (err) {
-//   if (err) {
-//     console.log(err);
-//     process.exit(2);
-//   }
-
-//   setTimeout(() => {
-//     pm2.start(receive, controlFn("app"));
-//     setTimeout(() => {
-//       pm2.start(chat, controlFn("chat"));
-//       setTimeout(() => {
-//         pm2.start(server, controlFn("server"));
-//       }, 100);
-//     }, 10);
-//   }, 10);
-// });
-
-// function controlFn(name) {
-//   return function (err, apps) {
-//     if (err) {
-//       console.log(err);
-//       return pm2.disconnect();
-//     }
-
-//     pm2.list((err, list) => {
-//       // console.log(err, list);
-
-//       pm2.restart(name, (err, proc) => {
-//         pm2.disconnect();
-//       });
-//     });
-//   };
-// }
 
 module.exports = {
-  apps: [receive, chat, server],
+  apps: [server],
   deploy: {
     production: production,
   },

@@ -1,326 +1,534 @@
-import uWs from "uWebSockets.js";
-import User from "./src/models/User.js";
-import { Message } from "./src/protobuf/index.js";
-import { emitter } from "./src/emitter/index.js";
-import { servers } from "./src/models/ServerBalancer.js";
-import broker from "./src/models/DataBroker.js";
-import pm2 from "pm2";
-import { spaces } from "./workers/server.js";
-
-/**
- * PORT               === 서버 포트
- * sockets            === sockets 맵
- * users              === users 맵
- * isDisableKeepAlive === keepalive 설정
- * deviceID           === 디바이스 인덱스
- * currentServer      === 스레드 === 서버
- * sp                 === 공간
- * targetServerName   === 타겟 서버 명
- * decoder            === message가 바이너리가 아닐 때
- */
-const PORT = process.env.NODE_ENV === "development" ? 4000 : 3000;
+const uWS = require("uWebSockets.js");
+// const fetch = require("node-fetch");
+// console.log(process.env.pm_id);
+//var port = Number(process.argv[2])
+var port = Number(process.env.PORT);
+const Queue = require("./queue/queue.js");
+const Queue2 = require("./queue/queue2.js");
+const Queue3 = require("./queue/queue3.js");
 const sockets = new Map();
-const users = new Map();
-let isDisableKeepAlive = false;
-let deviceID = 0;
-let currentServer = 1;
-let sp = "a"; // 공간은 URL 배정 받음
-let targetServerName = (num) => "server" + num;
+const viewers1 = new Map();
+const viewers2 = new Map();
+const viewers3 = new Map();
+const viewers4 = new Map();
+const viewers5 = new Map();
+const players1 = new Map();
+const players2 = new Map();
+const players3 = new Map();
+const players4 = new Map();
+const players5 = new Map();
+const locationQueue = new Queue3();
+const chatQueue = new Queue2();
+const stateQueue = new Queue2();
+const chatLog = new Queue();
 const decoder = new TextDecoder();
+var deviceID = 0;
 
-const app = uWs
-  .App({})
-  .ws(`/*`, {
-    /* Options */
-    idleTimeout: 32,
-    maxBackpressure: 1024,
-    maxPayloadLength: 1024, // 패킷 데이터 용량 (용량이 넘을 시 서버 끊김)
-    compression: uWs.DEDICATED_COMPRESSOR_3KB,
-    /* Handlers */
-    upgrade: upgradeHandler,
-    open: openHandler,
-    message: messageHandler,
-    drain: drainHandler,
-    close: closeHandler,
-  })
-  // port는 숫자여야합니다. 아니면 열리지 않습니다... 😂
-  .listen(PORT, (listenSocket) => {
-    console.log(`listening on ws://locahost:${PORT}`);
-    if (listenSocket) {
-      console.log(`${PORT}번 포트 열었음`);
-    }
-  });
+// ---------- protobuf js ------------
+const protobuf = require("protobufjs");
+var Type = protobuf.Type,
+  Field = protobuf.Field;
+function ProtoBuf(properties) {
+  protobuf.Message.call(this, properties);
+}
+(ProtoBuf.prototype = Object.create(protobuf.Message)).constructor = ProtoBuf;
 
-function upgradeHandler(res, req, context) {
-  /**
-   * 쿼리 가지고 옴
-   */
-  const params = Object.fromEntries(
-    req
-      .getQuery()
-      .split("&")
-      .filter((q) => q)
-      .map((q) => q.split("="))
-  );
-  const hostArray = req.getHeader("origin").match(/http(s)?:\/\/([\w\W]+)/);
-  const href = req.getHeader("origin") + req.getUrl() + "?ap=" + params.sp;
-  const host = hostArray ? hostArray[2] : "test";
-  const space = (params.sp || "A").toLowerCase();
-  const isObserver = params.admin === "kkn" && params.ch !== undefined;
+//Field.d(1, "fixed32", "required")(ProtoBuf.prototype, "id")
+//Field.d(2, "bytes", "required")(ProtoBuf.prototype, "pos")
+//Field.d(3, "sfixed32", "required")(ProtoBuf.prototype, "angle")
+Field.d(1, "fixed32", "required")(ProtoBuf.prototype, "id");
+Field.d(2, "float", "required")(ProtoBuf.prototype, "pox");
+Field.d(3, "float", "required")(ProtoBuf.prototype, "poy");
+Field.d(4, "float", "required")(ProtoBuf.prototype, "poz");
+Field.d(5, "sfixed32", "required")(ProtoBuf.prototype, "roy");
+/*
+for(let i = 0; i < 5000; i++) {
+    locationQueue.enter(`{"id":"tewtewt","pox":${i},"poy":${2.213124515},"poz":${1223.241421123123},"rox":${i},"roy":${2.213124515},"roz":${1223.241421123123}}`)
+}
+*/
 
-  res.upgrade(
-    {
-      url: req.getUrl(),
-      params: params,
-      /* 파라미터 추가되는 값 아래에 필드 추가 */
-      space: space,
-      href: href,
-      host: host,
-      ...(isObserver
-        ? {
-            observe: true,
-            channel: params.ch,
-          }
-        : {}),
+var uint8array, messageString, messageObject, locationTmp;
+let channels = new Map();
+
+// let req = {
+//   method: "POST",
+//   mode: "cors",
+//   cache: "no-cache",
+//   credentials: "same-origin",
+//   headers: new Headers({
+//     "Content-Type": "application/json",
+//   }),
+//   referrerPolicy: "no-referrer",
+//   body: {},
+// };
+
+// const serverCheck = async () => {
+//   await fetch("http://192.168.88.242:50186/v1/api/users/serverCheck", req)
+//     .then((response) => response.json())
+//     .then((data) => {
+//       // if (data.payload.rows[0].recent < 250) {
+//       //     port = data.payload.rows[0].port - 46195
+//       // } else if (data.payload.rows[1].recent < 250) {
+//       //     port = data.payload.rows[1].port - 46195
+//       // } else if (data.payload.rows[2].recent < 250) {
+//       //     port = data.payload.rows[2].port - 46195
+//       // } else if (data.payload.rows[3].recent < 250) {
+//       //     port = data.payload.rows[3].port - 46195
+//       // }
+
+//       open();
+//     })
+//     .catch((error) => {
+//       console.log(error);
+//     });
+// };
+
+// const addUser = async (space) => {
+//   let request = Object.assign(req, {
+//     body: JSON.stringify({ port: port + 46195, space: space }),
+//   });
+//   await fetch("http://175.45.203.210:3000/v1/api/users/addUser", request)
+//     .then((response) => response.json())
+//     .then((data) => {
+//       //console.log(Number(port + 46195) + ' server: add 1 user')
+//     })
+//     .catch((error) => {
+//       console.log(error);
+//     });
+// };
+
+// const deleteUser = async (space) => {
+//   let request = Object.assign(req, {
+//     body: JSON.stringify({ port: port + 46195, space: space }),
+//   });
+//   await fetch("http://175.45.203.210:3000/v1/api/users/deleteUser", req)
+//     .then((response) => response.json())
+//     .then((data) => {
+//       //console.log(Number(port + 46195) + ' server: delete 1 user')
+//     })
+//     .catch((error) => {
+//       console.log(error);
+//     });
+// };
+
+//serverCheck()
+
+const app = uWS
+  .App()
+  .ws("/*", {
+    compression: uWS.SHARED_COMPRESSOR,
+    //maxPayloadLength: 16 * 1024 * 1024,
+    idleTimeout: 1800,
+    //maxBackpressure: 1024,
+
+    open: (ws) => {
+      deviceID++;
+      ws.subscribe(String(deviceID));
+      //ws.subscribe(messageObject.space)
+      sockets.set(ws, deviceID);
     },
-    /* Spell these correctly */
-    req.getHeader("sec-websocket-key"),
-    req.getHeader("sec-websocket-protocol"),
-    req.getHeader("sec-websocket-extensions"),
-    context
-  );
-}
+    message: (ws, message, isBinary) => {
+      if (isBinary) {
+        locationQueue.enter(message);
+        locationTmp = ProtoBuf.decode(new Uint8Array(message));
+        if (players1.has(locationTmp.id)) {
+          Object.assign(players1.get(locationTmp.id), {
+            pox: locationTmp.pox,
+            poy: locationTmp.poy,
+            poz: locationTmp.poz,
+            //rox: messageObject.rox,
+            roy: locationTmp.roy,
+            //roz: messageObject.roz,
+            //row: messageObject.row,
+          });
+        } else if (players2.has(locationTmp.id)) {
+          Object.assign(players2.get(locationTmp.id), {
+            pox: locationTmp.pox,
+            poy: locationTmp.poy,
+            poz: locationTmp.poz,
+            //rox: messageObject.rox,
+            roy: locationTmp.roy,
+            //roz: messageObject.roz,
+            //row: messageObject.row,
+          });
+        } else if (players3.has(locationTmp.id)) {
+          Object.assign(players3.get(locationTmp.id), {
+            pox: locationTmp.pox,
+            poy: locationTmp.poy,
+            poz: locationTmp.poz,
+            //rox: messageObject.rox,
+            roy: locationTmp.roy,
+            //roz: messageObject.roz,
+            //row: messageObject.row,
+          });
+        } else if (players4.has(locationTmp.id)) {
+          Object.assign(players4.get(locationTmp.id), {
+            pox: locationTmp.pox,
+            poy: locationTmp.poy,
+            poz: locationTmp.poz,
+            //rox: messageObject.rox,
+            roy: locationTmp.roy,
+            //roz: messageObject.roz,
+            //row: messageObject.row,
+          });
+        } else if (players5.has(locationTmp.id)) {
+          Object.assign(players5.get(locationTmp.id), {
+            pox: locationTmp.pox,
+            poy: locationTmp.poy,
+            poz: locationTmp.poz,
+            //rox: messageObject.rox,
+            roy: locationTmp.roy,
+            //roz: messageObject.roz,
+            //row: messageObject.row,
+          });
+        }
+      } else {
+        messageString = decoder.decode(new Uint8Array(message));
+        messageObject = JSON.parse(messageString);
+        messageHandler(messageString, messageObject, ws, isBinary);
+      }
+    },
+    drain: (ws) => {
+      console.log("WebSocket backpressure: " + ws.getBufferedAmount());
+    },
+    close: (ws, code, message) => {
+      //if (viewers.has(sockets.get(ws))) viewers.delete(sockets.get(ws))
 
-function openHandler(ws) {
-  const { url, params, space, href, host } = ws;
-  if (!Boolean(params.sp)) {
-    return;
-  }
+      if (viewers1.has(sockets.get(ws))) {
+        // deleteUser(viewers1.get(sockets.get(ws)).space);
+        viewers1.delete(sockets.get(ws));
+      } else if (viewers2.has(sockets.get(ws))) {
+        // deleteUser(viewers2.get(sockets.get(ws)).space);
+        viewers2.delete(sockets.get(ws));
+      } else if (viewers3.has(sockets.get(ws))) {
+        // deleteUser(viewers3.get(sockets.get(ws)).space);
+        viewers3.delete(sockets.get(ws));
+      } else if (viewers4.has(sockets.get(ws))) {
+        // deleteUser(viewers4.get(sockets.get(ws)).space);
+        viewers4.delete(sockets.get(ws));
+      } else if (viewers5.has(sockets.get(ws))) {
+        // deleteUser(viewers5.get(sockets.get(ws)).space);
+        viewers5.delete(sockets.get(ws));
+      }
 
-  if (ws.observe) {
-    const observer = {
-      type: "observer",
-      id: "admin",
-      server: params.sv,
-      space: params.sp,
-      channel: params.ch,
-    };
+      if (players1.has(sockets.get(ws))) {
+        // deleteUser(players1.get(sockets.get(ws)).space);
+        players1.delete(sockets.get(ws));
+        app.publish(
+          messageObject.space,
+          JSON.stringify(Object.fromEntries(players1))
+        );
+      } else if (players2.has(sockets.get(ws))) {
+        // deleteUser(players2.get(sockets.get(ws)).space);
+        players2.delete(sockets.get(ws));
+        app.publish(
+          messageObject.space,
+          JSON.stringify(Object.fromEntries(players2))
+        );
+      } else if (players3.has(sockets.get(ws))) {
+        // deleteUser(players3.get(sockets.get(ws)).space);
+        players3.delete(sockets.get(ws));
+        app.publish(
+          messageObject.space,
+          JSON.stringify(Object.fromEntries(players3))
+        );
+      } else if (players4.has(sockets.get(ws))) {
+        // deleteUser(players4.get(sockets.get(ws)).space);
+        players4.delete(sockets.get(ws));
+        app.publish(
+          messageObject.space,
+          JSON.stringify(Object.fromEntries(players4))
+        );
+      } else if (players5.has(sockets.get(ws))) {
+        // deleteUser(players5.get(sockets.get(ws)).space);
+        players5.delete(sockets.get(ws));
+        app.publish(
+          messageObject.space,
+          JSON.stringify(Object.fromEntries(players5))
+        );
+      }
 
-    users.set(ws, observer);
-    sockets.set("admin", ws);
-    ws.server = observer.server;
-
-    ws.subscribe("server");
-    ws.subscribe("server" + users.get(ws).server);
-    ws.subscribe("admin");
-    ws.subscribe(
-      `${targetServerName(users.get(ws).server)}/space${users
-        .get(ws)
-        .space.toLowerCase()}/channel${users.get(ws).channel}`
-    );
-
-    broker.emit(ws.server + 1, "observer", {
-      observer: users.get(ws),
-    });
-    // emitter.emit(`server${ws.params.sv}::observer`, app, ws, users.get(ws));
-  } else {
-    const [isStable, allocateServerNumber] = servers.in(ws);
-    // [ ]: 서버 값 여기서 ws에 할당
-    currentServer = allocateServerNumber;
-    ws.server = currentServer;
-
-    deviceID++;
-
-    if (isDisableKeepAlive) {
-      ws.close();
-    }
-
-    sp = params.sp;
-
-    const user = new User({
-      id: null,
-      type: "viewer",
-      timestamp: new Date().getTime(),
-      deviceID: deviceID,
-      server: ws.server, // [ ]: 서버 밸런서에서 현재 서버 값 가져오기
-      space: sp,
-      host: host,
-    }).toJSON();
-    const renewViewer = spaces.add(user);
-
-    /**
-     * 전체 서버 구독
-     */
-    ws.subscribe("server");
-    ws.subscribe("server" + ws.server);
-    ws.subscribe(String(deviceID));
-    ws.subscribe(
-      `${targetServerName(
-        ws.server
-      )}/space${renewViewer.space.toLowerCase()}/channel${renewViewer.channel}`
-    );
-
-    sockets.set(String(deviceID), ws);
-    users.set(ws, renewViewer);
-
-    broker.emit(ws.server + 1, "open", {
-      viewer: users.get(ws),
-    });
-    // emitter.emit(
-    //   `${targetServerName(currentServer)}::open`,
-    //   app,
-    //   ws,
-    //   users.get(ws)
-    // );
-  }
-}
-
-function messageHandler(ws, message, isBinary) {
-  if (isBinary) {
-    /** // NOTICE: 로케이션으로 변경
-     * Player 로그인 시 / protobuf 메세지
-     */
-    let messageObject = JSON.parse(
-      JSON.stringify(Message.decode(new Uint8Array(message)))
-    );
-    console.log("들어온 데이터", messageObject);
-
-    if (ws.observe) return;
-    broker.emit(ws.server + 1, "location", {
-      location: messageObject,
-    });
-    // emitter.emit(
-    //   `${targetServerName(currentServer)}::location`,
-    //   app,
-    //   messageObject,
-    //   message
-    // );
-  } else {
-    // 로그인 데이터 받음
-    const data = JSON.parse(decoder.decode(message));
-    if (users.get(ws).type === "observer") {
-      // 옵저버 브로커는 open에 있음
-      return;
-    } else if (data.type === "player") {
-      // NEW: 클라이언트 데이터 규격 맞춤
-      const overrideUserData = Object.assign(users.get(ws), data);
-      users.set(ws, overrideUserData);
-      try {
-        broker.emit(ws.server + 1, "player", {
-          player: users.get(ws),
-        });
-        // emitter.emit(
-        //   `${targetServerName(currentServer)}::login`,
-        //   app,
-        //   users.get(ws)
-        // );
-      } catch (e) {}
-    } else if (data.type === "viewer") {
-      // 뷰어 데이터 덮어쓰기
-      const overrideUserData = Object.assign(users.get(ws), data);
-      users.set(ws, overrideUserData);
-      try {
-        broker.emit(ws.server + 1, "viewer", {
-          viewer: users.get(ws),
-        });
-
-        // emitter.emit(
-        //   `${targetServerName(currentServer)}::viewer`,
-        //   app,
-        //   users.get(ws)
-        // );
-      } catch (e) {}
-    } else if (data.type === "chat") {
-      try {
-        broker.emit(ws.server + 1, "chat", {
-          data,
-          message,
-        });
-        // emitter.emit(`chat`, app, data, message);
-      } catch (e) {}
-    }
-  }
-}
-
-function drainHandler(ws) {
-  console.log("WebSocket backpressure: " + ws.getBufferedAmount());
-}
-
-function closeHandler(ws, code, message) {
-  console.log("WebSocket closed");
-  try {
-    broker.emit(ws.server + 1, users.get(ws));
-    // emitter.emit(
-    //   `${targetServerName(currentServer)}::close`,
-    //   app,
-    //   ws,
-    //   users.get(ws)
-    // );
-  } catch (e) {
-    console.log(123, e);
-  }
-}
-
-/**
- * // NOTICE: pm2 서버 무한 실행 문제 발생
- * 서버 부하 검사
- */
-// emitter.on(`receive::balancer`, (state, serverName) => {
-//   const serverNumber = Number(serverName.match(/server([\d]+)/)[1]);
-//   // console.log(serverNumber);
-//   if (state === "busy") {
-//     currentServer += 1; // 서버 수 증가
-//     console.log(currentServer, "번 서버 실행!");
-//     console.log("it's too busy!!");
-//   } else if (state === "comfortable") {
-//     console.log("comfortable!");
-//   }
-// });
-
-/**
- * 프로세스 죽었을 때 SIGINT 이벤트 전달
- */
-process.on("SIGINT", function () {
-  isDisableKeepAlive = true;
-  app.close(function () {
-    process.exit(0);
-  });
-});
-
-process.on("message", ({ data }) => {
-  if (data.target === "publish") {
-    const { packet } = data;
-    const { topic, content, zip } = packet;
-    const socket = sockets.get(String(deviceID));
-    if (zip) {
-      // 데이터 보존을 위해 텍스트로 받음
-      const convertTo25Byte = Message.encode(content).finish();
-      app.publish(topic, convertTo25Byte, true, true);
+      console.log(sockets.get(ws) + " exited!");
+      sockets.delete(ws);
+      //console.log(Number(port + 46195) + 'server current connect players: ' + players.size + ' / current connect viewers: ' + viewers.size)
+    },
+  })
+  .any("/*", (res, req) => {
+    res.end("Nothing to see here!");
+  })
+  .listen(port, (token) => {
+    if (token) {
+      // process.send("ready")
+      console.log("Listening to port " + port);
     } else {
-      app.publish(topic, content);
+      console.log("Failed to listen to port " + port);
     }
-  } else if (data.target === "subscribe") {
-    const { packet } = data;
-    const { deviceID, channel } = packet;
-    const socket = sockets.get(String(deviceID));
-    sockets.set(socket, deviceID);
-    try {
-      users.set(
-        socket,
-        Object.assign(users.get(socket), {
-          channel: channel,
-        })
-      );
-    } catch (e) {
-      // process.exit(0);
+  });
+
+function messageHandler(messageString, messageObject, ws, isBinary) {
+  if (messageObject.type === "viewer") {
+    // addUser(messageObject.space);
+    ws.subscribe(messageObject.space);
+    //viewers.set(sockets.get(ws), Object.assign(messageObject, { deviceID: sockets.get(ws) }))
+    switch (messageObject.space) {
+      case "mayor":
+        viewers1.set(
+          sockets.get(ws),
+          Object.assign(messageObject, { deviceID: sockets.get(ws) })
+        );
+        app.publish(
+          String(sockets.get(ws)),
+          JSON.stringify(new Array(viewers1.get(sockets.get(ws))))
+        );
+        if (players1.size > 0)
+          app.publish(
+            messageObject.space,
+            JSON.stringify(Object.fromEntries(players1))
+          );
+        break;
+      case "model":
+        viewers2.set(
+          sockets.get(ws),
+          Object.assign(messageObject, { deviceID: sockets.get(ws) })
+        );
+        app.publish(
+          String(sockets.get(ws)),
+          JSON.stringify(new Array(viewers2.get(sockets.get(ws))))
+        );
+        if (players2.size > 0)
+          app.publish(
+            messageObject.space,
+            JSON.stringify(Object.fromEntries(players2))
+          );
+        break;
+      case "sing":
+        viewers3.set(
+          sockets.get(ws),
+          Object.assign(messageObject, { deviceID: sockets.get(ws) })
+        );
+        app.publish(
+          String(sockets.get(ws)),
+          JSON.stringify(new Array(viewers3.get(sockets.get(ws))))
+        );
+        if (players3.size > 0)
+          app.publish(
+            messageObject.space,
+            JSON.stringify(Object.fromEntries(players3))
+          );
+        break;
+      case "space4":
+        viewers4.set(
+          sockets.get(ws),
+          Object.assign(messageObject, { deviceID: sockets.get(ws) })
+        );
+        app.publish(
+          String(sockets.get(ws)),
+          JSON.stringify(new Array(viewers4.get(sockets.get(ws))))
+        );
+        if (players4.size > 0)
+          app.publish(
+            messageObject.space,
+            JSON.stringify(Object.fromEntries(players4))
+          );
+        break;
+      case "space5":
+        viewers5.set(
+          sockets.get(ws),
+          Object.assign(messageObject, { deviceID: sockets.get(ws) })
+        );
+        app.publish(
+          String(sockets.get(ws)),
+          JSON.stringify(new Array(viewers5.get(sockets.get(ws))))
+        );
+        if (players5.size > 0)
+          app.publish(
+            messageObject.space,
+            JSON.stringify(Object.fromEntries(players5))
+          );
+        break;
+    }
+
+    //clients.get(deviceID).send(JSON.stringify(new Array(players.get(deviceID))), isBinary)
+    //app.publish(String(sockets.get(ws)), JSON.stringify(new Array(viewers.get(sockets.get(ws)))))
+
+    // switch (messageObject.space) {
+    //     case 'mayor':
+    //         if (players1.size > 0) app.publish(messageObject.space, JSON.stringify(Object.fromEntries(players1)))
+    //         break
+    //     case 'model':
+    //         if (players2.size > 0) app.publish(messageObject.space, JSON.stringify(Object.fromEntries(players2)))
+    //         break
+    //     case 'sing':
+    //         if (players3.size > 0) app.publish(messageObject.space, JSON.stringify(Object.fromEntries(players3)))
+    //         break
+    //     case 'space4':
+    //         if (players4.size > 0) app.publish(messageObject.space, JSON.stringify(Object.fromEntries(players4)))
+    //         break
+    //     case 'space5':
+    //         if (players5.size > 0) app.publish(messageObject.space, JSON.stringify(Object.fromEntries(players5)))
+    //         break
+    // }
+
+    console.log("deviceID: " + messageObject.deviceID + " has joined!");
+    //console.log(Number(port + 46195) + ' server current connect players: ' + players.size + ' / current connect viewers: ' + viewers.size)
+  } else if (messageObject.type === "player") {
+    //players.set(sockets.get(ws), Object.assign(messageObject, { deviceID: sockets.get(ws) }))
+    switch (messageObject.space) {
+      case "mayor":
+        players1.set(
+          sockets.get(ws),
+          Object.assign(messageObject, { deviceID: sockets.get(ws) })
+        );
+        app.publish(
+          messageObject.space,
+          JSON.stringify(Object.fromEntries(players1))
+        );
+        viewers1.delete(sockets.get(ws));
+        break;
+      case "model":
+        players2.set(
+          sockets.get(ws),
+          Object.assign(messageObject, { deviceID: sockets.get(ws) })
+        );
+        app.publish(
+          messageObject.space,
+          JSON.stringify(Object.fromEntries(players2))
+        );
+        viewers2.delete(sockets.get(ws));
+        break;
+      case "sing":
+        players3.set(
+          sockets.get(ws),
+          Object.assign(messageObject, { deviceID: sockets.get(ws) })
+        );
+        app.publish(
+          messageObject.space,
+          JSON.stringify(Object.fromEntries(players3))
+        );
+        viewers3.delete(sockets.get(ws));
+        break;
+      case "space4":
+        players4.set(
+          sockets.get(ws),
+          Object.assign(messageObject, { deviceID: sockets.get(ws) })
+        );
+        app.publish(
+          messageObject.space,
+          JSON.stringify(Object.fromEntries(players4))
+        );
+        viewers4.delete(sockets.get(ws));
+        break;
+      case "space5":
+        players5.set(
+          sockets.get(ws),
+          Object.assign(messageObject, { deviceID: sockets.get(ws) })
+        );
+        app.publish(
+          messageObject.space,
+          JSON.stringify(Object.fromEntries(players5))
+        );
+        viewers5.delete(sockets.get(ws));
+        break;
+    }
+    //viewers.delete(sockets.get(ws))
+    ws.unsubscribe(String(sockets.get(ws)));
+
+    //app.publish(messageObject.space, JSON.stringify(Object.fromEntries(players)))
+    console.log(
+      "deviceID: " +
+        messageObject.deviceID +
+        " has logined! to " +
+        messageObject.id +
+        "!!"
+    );
+    //console.log(Number(port + 46195) + ' server current connect players: ' + players.size + ' / current connect viewers: ' + viewers.size)
+  } else if (messageObject.type === "chat") {
+    chatQueue.enter(messageString);
+  } else if (messageObject.type === "state") {
+    //console.log('state')
+    stateQueue.enter(messageString);
+    if (messageObject.state === "changeAvatar") {
+      //Object.assign(players.get(sockets.get(ws)), { avatar: messageObject.data })
+      switch (messageObject.space) {
+        case "mayor":
+          Object.assign(players1.get(sockets.get(ws)), {
+            avatar: messageObject.data,
+          });
+          break;
+        case "model":
+          Object.assign(players2.get(sockets.get(ws)), {
+            avatar: messageObject.data,
+          });
+          break;
+        case "sing":
+          Object.assign(players3.get(sockets.get(ws)), {
+            avatar: messageObject.data,
+          });
+          break;
+        case "space4":
+          Object.assign(players4.get(sockets.get(ws)), {
+            avatar: messageObject.data,
+          });
+          break;
+        case "space5":
+          Object.assign(players5.get(sockets.get(ws)), {
+            avatar: messageObject.data,
+          });
+          break;
+      }
     }
   }
-});
-
-process.send("ready");
-
-function getApp() {
-  return app;
 }
 
-export { getApp };
+const sendLocation = setInterval(() => {
+  if (locationQueue.count !== 0) {
+    let location = locationQueue.get();
+    app.publish("mayor", location, true, true);
+    app.publish("model", location, true, true);
+    app.publish("sing", location, true, true);
+    //app.publish(messageObject.space, locationQueue.get(), true, true)
+    //app.publish(messageObject.space, locationQueue.get(), true, true)
+  }
+}, 8);
+
+const sendElse = setInterval(() => {
+  if (chatQueue.count !== 0) {
+    let chat = chatQueue.get();
+    app.publish("mayor", chat);
+    app.publish("model", chat);
+    app.publish("sing", chat);
+    //app.publish('sing', chat)
+    //app.publish('sing', chat)
+  }
+  if (stateQueue.count !== 0) {
+    let state = stateQueue.get();
+    app.publish("mayor", state);
+    app.publish("model", state);
+    app.publish("sing", state);
+    //app.publish('mayor', state)
+    //app.publish('mayor', state)
+  }
+}, 100);
+
+/*
+setTimeout(() => 
+    const sendChat = setInterval(() => {
+        app.publish(messageObject.space, chatQueue.get())
+    }, 16)
+}, 10)
+
+setTimeout(() => {
+    const sendState = setInterval(() => {
+        app.publish(messageObject.space, stateQueue.get())
+    }, 16)
+}, 14)
+*/
+
+//ping
+setInterval(() => {
+  app.publish("mayor", "");
+  app.publish("model", "");
+  app.publish("sing", "");
+  //app.publish('model', '')
+  //app.publish('model', '')
+}, 55000);

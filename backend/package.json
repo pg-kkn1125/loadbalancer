@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "esm": "^3.2.25",
+    "node-fetch": "^3.2.10",
     "pm2": "^5.2.2",
     "protobufjs": "^7.1.2",
     "tx2": "^1.0.5",
